@@ -5,13 +5,31 @@ const STORAGE_KEY = 'admin_products';
 export const adminUtils = {
     // Get products from storage or fallback to static json
     getProducts: () => {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        return stored ? JSON.parse(stored) : productsData;
+        return window.__KV_PRODUCTS__ || productsData;
     },
 
     // Save products to local storage
     saveProducts: (products) => {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
+        window.__KV_PRODUCTS__ = products;
+        
+        const btn = document.getElementById('btn-export');
+        if (btn) btn.innerText = 'Sauvegarde en cours...';
+
+        fetch('/api/admin/products', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(products)
+        })
+        .then(() => {
+            if (btn) {
+                btn.innerText = '✓ Sauvegardé en ligne';
+                setTimeout(() => btn.innerText = 'Exporter JSON', 2000);
+            }
+        })
+        .catch(e => {
+            console.error('Failed to save to KV', e);
+            alert('Erreur lors de la sauvegarde sur le serveur Cloudflare.');
+        });
     },
 
     // Add or Update a product

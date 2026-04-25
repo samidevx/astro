@@ -1,0 +1,6 @@
+name = "astro"
+compatibility_date = "2024-04-01"
+
+[[kv_namespaces]]
+binding = "PRODUCTS_KV"
+id = "YOUR_KV_NAMESPACE_ID" # L'utilisateur remplacera ceci par l'ID de sa base de données

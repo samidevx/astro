@@ -1,10 +1,24 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import defaultProducts from '../../data/products.json';
+
+const kv = Astro.locals.runtime?.env?.PRODUCTS_KV;
+let initialProducts = defaultProducts;
+if (kv) {
+  try {
+    const kvProducts = await kv.get('all_products', 'json');
+    if (kvProducts) initialProducts = kvProducts;
+  } catch(e) {}
+}
 ---
 
 <Layout title="Admin Panel">
     <div id="admin-root"></div>
 </Layout>
+
+<script is:inline define:vars={{ initialProducts }}>
+    window.__KV_PRODUCTS__ = initialProducts;
+</script>
 
 <script>
     import { router } from '../../utils/admin_app.js';
