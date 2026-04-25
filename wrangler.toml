@@ -3,4 +3,4 @@ compatibility_date = "2024-04-01"
 
 [[kv_namespaces]]
 binding = "PRODUCTS_KV"
-id = "YOUR_KV_NAMESPACE_ID" # L'utilisateur remplacera ceci par l'ID de sa base de données
+id = "7c213629fa2e4c5c866249d312a3870d"
