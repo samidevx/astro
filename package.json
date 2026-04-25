@@ -7,11 +7,12 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "node -e \"const fs=require('fs');fs.mkdirSync('./dist/server',{recursive:true});fs.writeFileSync('./dist/server/entry.mjs','// placeholder');\" && astro build",
     "preview": "astro preview",
     "astro": "astro"
   },
   "dependencies": {
+    "@astrojs/cloudflare": "^13.2.1",
     "astro": "^6.1.9"
   },
   "devDependencies": {
