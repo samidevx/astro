@@ -1,0 +1,53 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Merci pour votre commande - Lina Nightwear" description="Votre commande a été confirmée avec succès.">
+    <main class="merci-page fade-in" style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background: #f9fafb;">
+        <div class="merci-card" style="background: white; padding: 40px; border-radius: 24px; box-shadow: 0 10px 32px rgba(0,0,0,0.08); max-width: 500px; width: 100%; text-align: center;">
+            <div class="m-icon" style="font-size: 64px; margin-bottom: 20px;">🎉</div>
+            <h1 style="font-family: 'Jost', sans-serif; font-size: 28px; font-weight: 800; color: #1f2937; margin-bottom: 12px;">Merci, <span id="m-name">Client</span> !</h1>
+            <p class="m-sub" style="font-size: 16px; color: #4b5563; margin-bottom: 30px;">Votre commande a été confirmée avec succès.</p>
+            
+            <div class="m-details" style="background: #f3f4f6; padding: 24px; border-radius: 16px; text-align: left; margin-bottom: 30px;">
+                <h3 style="font-family: 'Jost', sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 16px; color: #1f2937; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px;">Récapitulatif</h3>
+                <div class="m-row" style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 15px;">
+                    <span style="color: #6b7280;">Produit:</span> 
+                    <strong id="m-product" style="color: #1f2937; max-width: 60%; text-align: right;">Votre commande</strong>
+                </div>
+                <div class="m-row" style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 15px;">
+                    <span style="color: #6b7280;">Quantité:</span> 
+                    <strong id="m-qty" style="color: #1f2937;">1</strong>
+                </div>
+                <div class="m-row" style="display: flex; justify-content: space-between; margin-top: 16px; padding-top: 16px; border-top: 1px dashed #d1d5db; font-size: 16px;">
+                    <span style="color: #6b7280; font-weight: 600;">Total à payer à la livraison:</span> 
+                    <strong id="m-total" style="color: #c81e1e; font-size: 20px; font-weight: 800;">-</strong>
+                </div>
+            </div>
+            
+            <div class="m-next" style="background: #eff4ff; color: #1a56db; padding: 16px; border-radius: 12px; font-size: 14.5px; margin-bottom: 30px; font-weight: 500; display: flex; align-items: flex-start; gap: 12px; text-align: left;">
+                <i class="fa fa-truck-fast" style="font-size: 20px; margin-top: 2px;"></i> 
+                Un conseiller va vous appeler dans quelques heures pour confirmer l'adresse de livraison exacte.
+            </div>
+            
+            <a href="/" class="m-btn" style="display: inline-block; background: #1f2937; color: white; padding: 16px 32px; border-radius: 50px; font-family: 'Jost', sans-serif; font-weight: 700; text-decoration: none; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 14px rgba(0,0,0,0.15);">Retourner à la boutique</a>
+        </div>
+    </main>
+
+    <script is:inline>
+        document.body.classList.add('is-merci-page');
+        document.addEventListener('DOMContentLoaded', () => {
+            const fmtPrice = (num) => num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+            try {
+                const stored = sessionStorage.getItem('last_order');
+                if (stored) {
+                    const orderData = JSON.parse(stored);
+                    document.getElementById('m-name').innerText = orderData.customer_name || 'Client';
+                    document.getElementById('m-product').innerText = orderData.product_name || 'Votre commande';
+                    document.getElementById('m-qty').innerText = orderData.quantity || '1';
+                    document.getElementById('m-total').innerText = fmtPrice(orderData.total || 0);
+                }
+            } catch (e) {}
+        });
+    </script>
+</Layout>

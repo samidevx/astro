@@ -180,6 +180,19 @@ const cleanDesc = p.description.replace(/fetchpriority="high"/gi, 'loading="lazy
         )}
     </main>
 
+    <div class="modal" id="modal-confirm">
+        <div class="modal-bg"></div>
+        <div class="modal-box">
+            <div class="modal-ico green"><i class="fa fa-question"></i></div>
+            <h3 class="modal-ttl">Confirmer la commande ?</h3>
+            <p class="modal-body">Vous êtes sur le point de valider votre commande. Vous paierez uniquement à la livraison.</p>
+            <div class="modal-btns">
+                <button class="modal-btn mbtn-cancel" id="m-cancel">Annuler</button>
+                <button class="modal-btn mbtn-confirm" id="m-ok">Oui, Confirmer</button>
+            </div>
+        </div>
+    </div>
+
     <div class="sticky-bar">
         <a class="sticky-order" href="#orderFormBlock"><i class="fa fa-bag-shopping"></i> Commander</a>
         <a aria-label="WhatsApp" class="sticky-wa" href={`https://wa.me/${p.whatsapp.replace(/\+/g, '')}?text=${encodeURIComponent(`Bonjour, je souhaite commander : ${p.title}\nproduct link : https://linanightwear.com/product/${p.id}`)}`} target="_blank"><i class="fab fa-whatsapp"></i></a>
@@ -241,11 +254,132 @@ const cleanDesc = p.description.replace(/fetchpriority="high"/gi, 'loading="lazy
             });
         }
 
+        const GOOGLE_SHEETS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxa8D0w65CcXso3TaKuugijiwLk826xSJVQ4Ay5lS-9CzH3r06Wc6t-Bw8D_TOMNLAjIA/exec";
+        const cartSessionId = "ORD-" + Date.now().toString().slice(-6) + "-" + Math.floor(Math.random() * 1000);
+        let isSubmitting = false;
+        let lastAbandonedStr = "";
+
+        const getUTMParams = () => {
+            return {
+                utm_source: sessionStorage.getItem('utm_source') || '',
+                utm_medium: sessionStorage.getItem('utm_medium') || '',
+                utm_campaign: sessionStorage.getItem('utm_campaign') || '',
+                utm_term: sessionStorage.getItem('utm_term') || '',
+                utm_content: sessionStorage.getItem('utm_content') || ''
+            };
+        };
+
+        const firePixel = (event, data) => {
+            if (typeof fbq === 'function') fbq('track', event, data);
+        };
+
         const form = document.getElementById('orderForm');
         if (form) {
-            form.addEventListener('submit', (e) => {
+            form.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                alert('Commande validée !');
+
+                firePixel('InitiateCheckout', {
+                    value: price * qty,
+                    currency: p.currency === 'CFA' ? 'XOF' : p.currency,
+                    content_name: p.title
+                });
+
+                const ok = await new Promise(res => {
+                    const modal = document.getElementById('modal-confirm');
+                    modal.classList.add('open');
+                    document.getElementById('m-ok').onclick = () => { modal.classList.remove('open'); res(true); };
+                    document.getElementById('m-cancel').onclick = () => { modal.classList.remove('open'); res(false); };
+                });
+                if (!ok) return;
+
+                isSubmitting = true;
+                const btn = document.getElementById('submitBtn');
+                btn.disabled = true;
+                btn.innerHTML = 'Envoi... <span class="spinner"></span>';
+
+                const formData = new FormData();
+                formData.append("nom", document.getElementById('nom').value);
+                formData.append("telephone", document.getElementById('tel').value);
+                formData.append("pays", document.getElementById('pays').value);
+                formData.append("adresse", document.getElementById('adr').value);
+                formData.append("produit", p.title);
+                formData.append("prix", (price * qty) + " " + p.currency);
+                formData.append("quantity", qty);
+                formData.append("platform", "AstroJS");
+                formData.append("order_id", cartSessionId);
+                formData.append("code", p.code || "");
+                formData.append("status", "COMPLETED");
+
+                const vCouleur = document.getElementById('var-couleur');
+                const vTaille = document.getElementById('var-taille');
+                if (vCouleur) formData.append("couleur", vCouleur.value);
+                if (vTaille) formData.append("taille", vTaille.value);
+
+                const utms = getUTMParams();
+                Object.entries(utms).forEach(([k, v]) => formData.append(k, v));
+
+                try {
+                    await fetch(GOOGLE_SHEETS_WEBAPP_URL, { method: "POST", body: formData, mode: "no-cors" });
+                    firePixel('Purchase', {
+                        value: price * qty,
+                        currency: p.currency === 'CFA' ? 'XOF' : p.currency,
+                        content_name: p.title,
+                        content_ids: [p.code || window.location.pathname],
+                        content_type: 'product',
+                        num_items: qty
+                    });
+                    sessionStorage.setItem('last_order', JSON.stringify({
+                        customer_name: document.getElementById('nom').value,
+                        product_name: p.title,
+                        quantity: qty,
+                        total: price * qty
+                    }));
+                    window.location.href = '/merci';
+                } catch (err) {
+                    btn.innerHTML = '❌ ÉCHEC, RÉESSAYER';
+                    btn.style.background = '#c81e1e';
+                    btn.disabled = false;
+                    isSubmitting = false;
+                }
+            });
+
+            // Abandoned Checkout tracking
+            const logAbandoned = () => {
+                if (isSubmitting) return;
+                const requireds = Array.from(form.querySelectorAll('[required]'));
+                const allValid = requireds.every(el => {
+                    if (el.type === 'checkbox') return el.checked;
+                    return el.value && el.value.trim().length >= (el.type === 'tel' ? 8 : 2);
+                });
+
+                if (allValid) {
+                    const tel = document.getElementById('tel').value;
+                    const nom = document.getElementById('nom').value;
+                    const adr = document.getElementById('adr').value;
+                    const pays = document.getElementById('pays').value;
+
+                    const currentStr = tel + nom + adr + pays;
+                    if (currentStr === lastAbandonedStr) return;
+                    lastAbandonedStr = currentStr;
+
+                    const formData = new FormData();
+                    formData.append("nom", nom);
+                    formData.append("telephone", tel);
+                    formData.append("pays", pays);
+                    formData.append("adresse", adr);
+                    formData.append("produit", p.title);
+                    formData.append("prix", (price * qty) + " " + p.currency);
+                    formData.append("quantity", qty);
+                    formData.append("status", "ABANDONED");
+                    formData.append("code", p.code || "");
+                    formData.append("order_id", cartSessionId);
+                    fetch(GOOGLE_SHEETS_WEBAPP_URL, { method: "POST", body: formData, mode: "no-cors" });
+                }
+            };
+
+            form.querySelectorAll('input, select').forEach(el => {
+                el.addEventListener('blur', logAbandoned);
+                el.addEventListener('change', logAbandoned);
             });
         }
     });
