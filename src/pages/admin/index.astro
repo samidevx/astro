@@ -1,0 +1,19 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="Admin Panel">
+    <div id="admin-root"></div>
+</Layout>
+
+<script>
+    import { router } from '../../utils/admin_app.js';
+    
+    document.addEventListener('DOMContentLoaded', () => {
+        router();
+    });
+
+    window.addEventListener('popstate', () => {
+        router();
+    });
+</script>

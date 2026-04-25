@@ -1,0 +1,47 @@
+---
+import Layout from '../layouts/Layout.astro';
+import productsData from '../data/products.json';
+---
+
+<Layout title="Lina Nightwear - Boutique E-commerce & Mode">
+  <section class="hero">
+      <div class="hero-inner">
+          <div class="hero-pill">🔥 Offre Limitée</div>
+          <h1>Produits de Qualité<br/>Livrés Chez Vous</h1>
+          <p>Paiement à la livraison · Retour gratuit · Livraison rapide</p>
+          <a class="hero-btn" href="#catalogue"><i class="fa fa-bag-shopping"></i> Voir les Produits</a>
+      </div>
+  </section>
+
+  <div class="trust-bar">
+      <div class="trust-inner">
+          <div class="trust-item ti-green"><div class="trust-icon"><i class="fa fa-check"></i></div> Livraison Gratuite</div>
+          <div class="trust-item ti-blue"><div class="trust-icon"><i class="fa fa-lock"></i></div> Paiement Sécurisé</div>
+          <div class="trust-item ti-orange"><div class="trust-icon"><i class="fa fa-headset"></i></div> Support 7j/7</div>
+          <div class="trust-item ti-green"><div class="trust-icon"><i class="fa fa-rotate-left"></i></div> Retour 7 Jours</div>
+      </div>
+  </div>
+
+  <div class="catalogue fade-in" id="catalogue">
+      <div class="catalogue-hdr">
+          <h2>🛒 Nos Produits</h2>
+          <p>Livraison gratuite · Paiement à la livraison</p>
+      </div>
+      <div class="catalogue-grid">
+          {productsData.map((p: any) => (
+              <a class={`pcard ${p.modeBlack === 'yes' ? 'mode-nuit' : ''}`} href={`/product/${p.id}`}>
+                  <div class="pcard-img">
+                      <img src={p.featuredImage} alt={p.title} loading="lazy" />
+                      <span class="pcard-badge">🔥 Offre</span>
+                  </div>
+                  <div class="pcard-body">
+                      <div class="pcard-title">{p.title}</div>
+                      <div class="pcard-price" style="font-size: 15px; margin-top: 5px;">Découvrir l'offre ➔</div>
+                      <div class="pcard-stars">★★★★★</div>
+                      <div class="pcard-cta"><i class="fa fa-bag-shopping"></i> Commander</div>
+                  </div>
+              </a>
+          ))}
+      </div>
+  </div>
+</Layout>

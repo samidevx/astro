@@ -1,0 +1,115 @@
+---
+import '../styles/global.css';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+
+interface Props {
+  title?: string;
+  description?: string;
+  image?: string;
+}
+
+const { 
+  title = "Lina Nightwear - Boutique E-commerce & Mode", 
+  description = "Découvrez notre collection exclusive de nightwear. Livraison rapide, paiement à la livraison et qualité premium garantie.",
+  image = "https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&q=80&w=1200"
+} = Astro.props;
+---
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{title}</title>
+  <meta name="description" content={description} />
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content={Astro.url} />
+  <meta property="og:title" content={title} />
+  <meta property="og:description" content={description} />
+  <meta property="og:image" content={image} />
+  <meta property="og:site_name" content="Lina Nightwear" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:url" content={Astro.url} />
+  <meta name="twitter:title" content={title} />
+  <meta name="twitter:description" content={description} />
+  <meta name="twitter:image" content={image} />
+
+  <!-- Preconnect -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
+
+  <!-- Google Fonts -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700;800&display=swap" media="print" onload="this.media='all'" />
+  <noscript>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700;800&display=swap" />
+  </noscript>
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" media="print" onload="this.media='all'" />
+  <noscript>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  </noscript>
+
+  <!-- UTM Capture -->
+  <script is:inline>
+    (function () {
+      try {
+        var search = window.location.search;
+        var params = new URLSearchParams(search);
+        var utms = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
+        utms.forEach(function (k) { if (params.get(k)) sessionStorage.setItem(k, params.get(k)); });
+      } catch (e) { }
+    })();
+  </script>
+
+  <!-- Meta Pixel -->
+  <script is:inline>
+    setTimeout(function () {
+      !function (f, b, e, v, n, t, s) {
+        if (f.fbq) return; n = f.fbq = function () {
+          n.callMethod ?
+          n.callMethod.apply(n, arguments) : n.queue.push(arguments)
+        };
+        if (!f._fbq) f._fbq = n; n.push = n; n.loaded = !0; n.version = '2.0';
+        n.queue = []; t = b.createElement(e); t.async = !0;
+        t.src = v; s = b.getElementsByTagName(e)[0];
+        s.parentNode.insertBefore(t, s)
+      }(window, document, 'script',
+        'https://connect.facebook.net/en_US/fbevents.js');
+      fbq('init', '950990427685437');
+      fbq('track', 'PageView');
+    }, 3000);
+  </script>
+  <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=950990427685437&ev=PageView&noscript=1" /></noscript>
+</head>
+<body>
+  <Header />
+  <div id="app">
+    <slot />
+  </div>
+  <Footer />
+
+  <script is:inline>
+    // Global dark mode toggle setup
+    document.addEventListener('DOMContentLoaded', () => {
+      const modeBlack = localStorage.getItem('modeBlack');
+      if (modeBlack === 'yes') document.body.classList.add('mode-nuit');
+      
+      const toggles = document.querySelectorAll('.mode-toggle');
+      toggles.forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.body.classList.toggle('mode-nuit');
+          localStorage.setItem('modeBlack', document.body.classList.contains('mode-nuit') ? 'yes' : 'no');
+        });
+      });
+    });
+  </script>
+</body>
+</html>

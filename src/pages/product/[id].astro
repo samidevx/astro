@@ -1,0 +1,252 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import productsData from '../../data/products.json';
+
+export function getStaticPaths() {
+  return productsData.map((p) => ({
+    params: { id: p.id },
+    props: { p },
+  }));
+}
+
+const { p } = Astro.props;
+
+const isLP = p.isLandingPage && p.isLandingPage.toLowerCase() === 'yes';
+const fmtPrice = (num) => num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+const COUNTRY_MAP = {
+    "CI": "Côte d'Ivoire", "SN": "Sénégal", "BF": "Burkina Faso", "TG": "Togo", "BJ": "Bénin",
+    "ML": "Mali", "GA": "Gabon", "CM": "Cameroun", "NE": "Niger", "CG": "Congo Brazzaville",
+    "CD": "Congo Kinshasa", "GN": "Guinée", "TD": "Chad"
+};
+
+const cleanDesc = p.description.replace(/fetchpriority="high"/gi, 'loading="lazy"').replace(/<img(?!([^>]*loading=))/g, '<img loading="lazy" ');
+---
+
+<Layout title={`${p.title} - Lina Nightwear`} description={p.description.replace(/<[^>]*>/g, '').slice(0, 160) + '...'} image={p.featuredImage}>
+    <main class={`product-page fade-in ${isLP ? 'is-lp' : ''}`}>
+        {isLP && (
+            <div class="prod-desc landing-mode-desc" style="margin-top:0; margin-bottom: 24px;">
+                <div id="d-desc-content" set:html={cleanDesc}></div>
+            </div>
+        )}
+
+        <div class="product-card">
+            {!isLP && (
+            <div class="prod-gallery">
+                {((Array.isArray(p.gallery) && p.gallery.length > 0) || (typeof p.gallery === 'string' && p.gallery.toLowerCase() === 'yes')) ? (
+                    <div id="interactive-gallery">
+                        <div class="ig-main">
+                            <button class="ig-btn ig-prev" id="prev-ig" aria-label="Image précédente"><i class="fa fa-chevron-left"></i></button>
+                            <img src={Array.isArray(p.gallery) ? p.gallery[0] : (p.images ? p.images[0] : p.featuredImage)} id="ig-main-img" alt={p.title} fetchpriority="high" loading="eager" />
+                            <button class="ig-btn ig-next" id="next-ig" aria-label="Image suivante"><i class="fa fa-chevron-right"></i></button>
+                        </div>
+                        <div class="ig-thumbs" id="ig-thumbs">
+                            {[p.featuredImage, ...(Array.isArray(p.gallery) ? p.gallery : (p.images || []))].map((img, i) => (
+                                <div class={`ig-thumb ${i === 0 ? 'active' : ''}`} data-index={i}><img src={img} loading="lazy" /></div>
+                            ))}
+                        </div>
+                    </div>
+                ) : (
+                    <img src={p.featuredImage} alt={p.title} fetchpriority="high" loading="eager" />
+                )}
+                <div class="prod-badges">
+                    <span class="badge badge-sale">🔥 Offre Spéciale</span>
+                </div>
+            </div>
+            )}
+            <div class="prod-info">
+                <h1 class="prod-title">{p.title}</h1>
+                <div class="prod-rating">
+                    <div class="stars">★★★★★</div>
+                    <span class="rating-count">({p.reviews} avis)</span>
+                    <span class="rating-badge"><i class="fa fa-circle-check"></i> Vendeur Vérifié</span>
+                </div>
+                <div class="price-row" style="margin-bottom: 10px; align-items: center;">
+                    <span class="price-now" id="d-price" style="font-size: 42px; color: var(--red);">{fmtPrice(p.price)} {p.currency}</span>
+                    {p.priceOld && <span class="price-old" id="d-price-old" style="font-size: 21px; color: var(--gray-500);">{fmtPrice(p.priceOld)} {p.currency}</span>}
+                    {p.priceOld && <span class="price-save" id="d-price-save" style="font-size: 13.5px; padding: 5px 12px; background: #fef08a; color: #92400e;">Économisez {fmtPrice(p.priceOld - p.price)} {p.currency} (-{Math.round((p.priceOld - p.price) / p.priceOld * 100)}%)</span>}
+                </div>
+                <p class="price-note" style="margin-bottom: 28px; font-size: 14.5px; color: var(--gray-500);"><span style="font-size: 15px;">💰</span> Paiement à la livraison — Zéro risque</p>
+                
+                <div class="stock-wrap" style="margin-bottom: 28px;">
+                    <div class="stock-lbl" style="font-size: 15px; font-weight: 700; color: var(--gray-800); margin-bottom: 10px;">
+                        <span>Stock disponible</span> 
+                        <strong id="d-stock-lbl" style="color: var(--red);">⚠️ Plus que {p.stock} unités !</strong>
+                    </div>
+                    <div class="stock-track" style="height: 10px; background: var(--gray-200); border-radius: 10px;">
+                        <div class="stock-fill" style="width: 90%; height: 100%; border-radius: 10px; background: var(--orange); background: linear-gradient(90deg, var(--orange), #f97316); animation: none;"></div>
+                    </div>
+                </div>
+
+                <ul class="feat-list" style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 24px;">
+                    <li class="feat-item" style="font-size: 15.5px; color: var(--gray-700); align-items: center;"><i class="fa fa-check-circle" style="color: var(--green); font-size: 19px; border-radius: 50%; fill: currentColor;"></i> Livraison gratuite partout</li>
+                    <li class="feat-item" style="font-size: 15.5px; color: var(--gray-700); align-items: center;"><i class="fa fa-check-circle" style="color: var(--green); font-size: 19px; border-radius: 50%; fill: currentColor;"></i> Paiement uniquement à la réception</li>
+                    <li class="feat-item" style="font-size: 15.5px; color: var(--gray-700); align-items: center;"><i class="fa fa-check-circle" style="color: var(--green); font-size: 19px; border-radius: 50%; fill: currentColor;"></i> Retour gratuit sous 7 jours</li>
+                    <li class="feat-item" style="font-size: 15.5px; color: var(--gray-700); align-items: center;"><i class="fa fa-check-circle" style="color: var(--green); font-size: 19px; border-radius: 50%; fill: currentColor;"></i> Service client 7j/7</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="order-col" id="orderFormBlock">
+            <div class="order-card">
+                <div class="order-hdr" style="background: #2563eb;">
+                    <h2 style="font-family: var(--fh); font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 8px; margin: 0; color: #fff;">
+                        <i class="fa fa-shopping-cart"></i> Passer ma commande
+                    </h2>
+                    <p style="font-size: 13px; opacity: 0.9; margin-top: 5px;">Remplissez le formulaire ci-dessous</p>
+                </div>
+                <div class="order-body">
+                    <form id="orderForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label" for="pays">🌍 Pays <span class="req">*</span></label>
+                                <select class="form-control" id="pays" required>
+                                    <option value="">Choisir le pays</option>
+                                    {p.pays.split(',').map((c: string) => <option value={c}>{COUNTRY_MAP[c as keyof typeof COUNTRY_MAP] || c}</option>)}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="tel">📱 Téléphone <span class="req">*</span></label>
+                                <input type="tel" class="form-control" id="tel" placeholder="XX XXX XX XX" required />
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label" for="nom">👤 Nom <span class="req">*</span></label>
+                                <input type="text" class="form-control" id="nom" placeholder="Votre nom complet" required />
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="adr">📍 Ville <span class="req">*</span></label>
+                                <input type="text" class="form-control" id="adr" placeholder="Ville, Quartier" required />
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            {p.couleur && (
+                                <div class="form-group">
+                                    <label class="form-label" for="var-couleur"><i class="fa fa-palette"></i> Couleur</label>
+                                    <select class="form-control" id="var-couleur">
+                                        {p.couleur.split(',').map((c: string) => <option value={c}>{c}</option>)}
+                                    </select>
+                                </div>
+                            )}
+
+                            {p.taille && (
+                                <div class="form-group">
+                                    <label class="form-label" for="var-taille"><i class="fa fa-ruler-combined"></i> Taille</label>
+                                    <select class="form-control" id="var-taille">
+                                        {p.taille.split(',').map((s: string) => <option value={s}>{s}</option>)}
+                                    </select>
+                                </div>
+                            )}
+                        </div>
+
+                        {p.showQuantity === 'yes' && p.bundle !== 'yes' && (
+                            <div class="qty-action-wrap">
+                                <label class="qty-action-lbl" for="manual-qty">Quantité</label>
+                                <div class="qty-box">
+                                    <button type="button" class="qty-btn" id="btn-qty-minus" aria-label="Diminuer la quantité">-</button>
+                                    <input type="number" class="qty-val" id="manual-qty" value="1" readonly />
+                                    <button type="button" class="qty-btn" id="btn-qty-plus" aria-label="Augmenter la quantité">+</button>
+                                </div>
+                            </div>
+                        )}
+
+                        <div class="order-summary">
+                            <div class="sum-row"><span>Prix du produit</span> <span>{fmtPrice(p.price)} {p.currency}</span></div>
+                            <div class="sum-row"><span>Quantité</span> <span id="sum-qty">1</span></div>
+                            <div class="sum-row"><span>Prix de livraison</span> <span>Gratuit</span></div>
+                            <div class="sum-total">
+                                <span>Total général</span>
+                                <span id="sum-total">{fmtPrice(p.price)} {p.currency}</span>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="submit-btn" id="submitBtn" style="background: #10b981; padding: 18px;">
+                            <i class="fa fa-lock"></i> Valider Ma Commande
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        {!isLP && (
+            <div class="prod-desc">
+                <h2 class="section-ttl"><i class="fa fa-file-lines"></i> Description</h2>
+                <div id="d-desc-content" set:html={cleanDesc}></div>
+            </div>
+        )}
+    </main>
+
+    <div class="sticky-bar">
+        <a class="sticky-order" href="#orderFormBlock"><i class="fa fa-bag-shopping"></i> Commander</a>
+        <a aria-label="WhatsApp" class="sticky-wa" href={`https://wa.me/${p.whatsapp.replace(/\+/g, '')}?text=${encodeURIComponent(`Bonjour, je souhaite commander : ${p.title}\nproduct link : https://linanightwear.com/product/${p.id}`)}`} target="_blank"><i class="fab fa-whatsapp"></i></a>
+    </div>
+</Layout>
+
+<script is:inline define:vars={{ productData: p }}>
+    window.productData = productData;
+</script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const p = window.productData;
+        let qty = 1;
+        let price = p.price;
+
+        if (p.isLandingPage === 'yes' || p.modeBlack === 'yes') {
+            if (p.isLandingPage === 'yes') document.body.classList.add('lp-mode-active', 'is-merci-page');
+            if (p.modeBlack === 'yes') document.body.classList.add('mode-nuit');
+        }
+
+        const fmtPrice = (num) => num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+        const qtyMinus = document.getElementById('btn-qty-minus');
+        const qtyPlus = document.getElementById('btn-qty-plus');
+        const qtyVal = document.getElementById('manual-qty');
+        const sumQty = document.getElementById('sum-qty');
+        const sumTotal = document.getElementById('sum-total');
+
+        const updateTotal = () => {
+            if(sumQty) sumQty.innerText = qty.toString();
+            if(sumTotal) sumTotal.innerText = fmtPrice(price * qty) + ' ' + p.currency;
+        }
+
+        if (qtyMinus && qtyPlus && qtyVal) {
+            qtyMinus.addEventListener('click', () => { if (qty > 1) { qty--; qtyVal.value = qty.toString(); updateTotal(); } });
+            qtyPlus.addEventListener('click', () => { qty++; qtyVal.value = qty.toString(); updateTotal(); });
+        }
+
+        const igThumbs = document.querySelectorAll('.ig-thumb');
+        const igMainImg = document.getElementById('ig-main-img');
+        let igIndex = 0;
+
+        if (igThumbs.length > 0 && igMainImg) {
+            igThumbs.forEach((t, i) => {
+                t.addEventListener('click', () => {
+                    igThumbs.forEach(x => x.classList.remove('active'));
+                    t.classList.add('active');
+                    igMainImg.src = t.querySelector('img').src;
+                    igIndex = i;
+                });
+            });
+            document.getElementById('prev-ig')?.addEventListener('click', () => {
+                igIndex = (igIndex - 1 + igThumbs.length) % igThumbs.length;
+                igThumbs[igIndex].click();
+            });
+            document.getElementById('next-ig')?.addEventListener('click', () => {
+                igIndex = (igIndex + 1) % igThumbs.length;
+                igThumbs[igIndex].click();
+            });
+        }
+
+        const form = document.getElementById('orderForm');
+        if (form) {
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                alert('Commande validée !');
+            });
+        }
+    });
+</script>
