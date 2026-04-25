@@ -9,5 +9,9 @@ directory = "./dist/client"
 binding = "PRODUCTS_KV"
 id = "7c213629fa2e4c5c866249d312a3870d"
 
+[[kv_namespaces]]
+binding = "SESSION"
+id = "596bd87e707c405f9059dff5b6277891"
+
 [observability]
 enabled = true
