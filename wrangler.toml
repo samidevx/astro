@@ -1,0 +1,11 @@
+name = "astro"
+main = "dist/server/entry.mjs"
+compatibility_date = "2024-04-01"
+compatibility_flags = [ "nodejs_compat" ]
+
+[assets]
+directory = "./dist/client"
+
+[[kv_namespaces]]
+binding = "PRODUCTS_KV"
+id = "7c213629fa2e4c5c866249d312a3870d"
