@@ -1,22 +1,16 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import defaultProducts from '../../data/products.json';
+import productsList from '../../data/products.json';
 
-const kv = Astro.locals.runtime?.env?.PRODUCTS_KV;
-let productsList = defaultProducts;
-if (kv) {
-  try {
-    const kvProducts = await kv.get('all_products', 'json');
-    if (kvProducts) productsList = kvProducts;
-  } catch(e) {}
+export async function getStaticPaths() {
+  return productsList.map((p) => ({
+    params: { id: p.id },
+    props: { p },
+  }));
 }
 
+const { p } = Astro.props;
 const { id } = Astro.params;
-const p = productsList.find((prod: any) => prod.id === id);
-
-if (!p) {
-  return Astro.redirect('/404');
-}
 
 const isLP = p.isLandingPage && p.isLandingPage.toLowerCase() === 'yes';
 const fmtPrice = (num) => num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");

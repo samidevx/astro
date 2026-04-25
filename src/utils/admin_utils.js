@@ -5,31 +5,15 @@ const STORAGE_KEY = 'admin_products';
 export const adminUtils = {
     // Get products from storage or fallback to static json
     getProducts: () => {
-        return window.__KV_PRODUCTS__ || productsData;
+        const stored = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
+        return stored ? JSON.parse(stored) : productsData;
     },
 
     // Save products to local storage
     saveProducts: (products) => {
-        window.__KV_PRODUCTS__ = products;
-        
-        const btn = document.getElementById('btn-export');
-        if (btn) btn.innerText = 'Sauvegarde en cours...';
-
-        fetch('/api/admin/products', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(products)
-        })
-        .then(() => {
-            if (btn) {
-                btn.innerText = '✓ Sauvegardé en ligne';
-                setTimeout(() => btn.innerText = 'Exporter JSON', 2000);
-            }
-        })
-        .catch(e => {
-            console.error('Failed to save to KV', e);
-            alert('Erreur lors de la sauvegarde sur le serveur Cloudflare.');
-        });
+        if (typeof window !== 'undefined') {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
+        }
     },
 
     // Add or Update a product
@@ -59,8 +43,6 @@ export const adminUtils = {
     // Fetch orders from Google Sheets (Mocking it for now if we don't have a GET endpoint)
     fetchOrders: async (webhookUrl) => {
         try {
-            // If the user's Apps Script doesn't support GET, this will fail.
-            // We fallback to session storage for "recent" orders on this machine.
             const response = await fetch(webhookUrl);
             if (response.ok) return await response.json();
             return JSON.parse(sessionStorage.getItem('captured_orders') || '[]');

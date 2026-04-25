@@ -1,15 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import defaultProducts from '../data/products.json';
-
-const kv = Astro.locals.runtime?.env?.PRODUCTS_KV;
-let productsData = defaultProducts;
-if (kv) {
-  try {
-    const kvProducts = await kv.get('all_products', 'json');
-    if (kvProducts) productsData = kvProducts;
-  } catch(e) {}
-}
+import productsData from '../data/products.json';
 ---
 
 <Layout title="Lina Nightwear - Boutique E-commerce & Mode">
