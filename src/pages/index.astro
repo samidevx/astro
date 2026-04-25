@@ -28,10 +28,10 @@ import productsData from '../data/products.json';
           <p>Livraison gratuite · Paiement à la livraison</p>
       </div>
       <div class="catalogue-grid">
-          {productsData.map((p: any) => (
+          {productsData.map((p: any, index: number) => (
               <a class={`pcard ${p.modeBlack === 'yes' ? 'mode-nuit' : ''}`} href={`/product/${p.id}`}>
                   <div class="pcard-img">
-                      <img src={p.featuredImage} alt={p.title} loading="lazy" />
+                      <img src={p.featuredImage} alt={p.title} loading={index < 4 ? "eager" : "lazy"} />
                       <span class="pcard-badge">🔥 Offre</span>
                   </div>
                   <div class="pcard-body">
