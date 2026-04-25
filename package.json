@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "prebuild": "node -e \"const fs=require('fs');['dist','.wrangler'].forEach(d=>{try{fs.rmSync(d,{recursive:true,force:true})}catch(e){}});\"",
+    "prebuild": "node -e \"const fs=require('fs');fs.mkdirSync('./dist/server',{recursive:true});fs.writeFileSync('./dist/server/entry.mjs','// placeholder');\"",
     "build": "astro build",
     "preview": "npm run build && wrangler dev",
     "astro": "astro",
