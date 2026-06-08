@@ -82,13 +82,7 @@ const cleanDesc = (p.description || "")
                                         <i class="fa fa-chevron-left" />
                                     </button>
                                     <img
-                                        src={
-                                            Array.isArray(p.gallery)
-                                                ? p.gallery[0]
-                                                : p.images
-                                                  ? p.images[0]
-                                                  : p.featuredImage
-                                        }
+                                        src={p.featuredImage}
                                         id="ig-main-img"
                                         alt={p.title}
                                         fetchpriority="high"
@@ -384,8 +378,41 @@ const cleanDesc = (p.description || "")
                             }
                         </div>
 
+                                 {
+                            p.offres && p.offres.length > 0 && (
+                                <div class="offers-selector-wrap" style="margin-bottom: 24px;">
+                                    <label class="form-label" style="font-weight: 800; color: #1e293b; margin-bottom: 14px; display: block; text-transform: uppercase; letter-spacing: 0.05em; font-size: 13.5px; font-family: var(--fh);">🎁 SÉLECTIONNEZ VOTRE OFFRE</label>
+                                    <div class="offers-list" style="display: flex; flex-direction: column; gap: 12px;">
+                                        {p.offres.map((off: any, idx: number) => {
+                                            const pct = off.oldPrice ? Math.round(((off.oldPrice - off.price) / off.oldPrice) * 100) : 0;
+                                            return (
+                                                <label class={`offer-option-card ${idx === 0 ? 'active' : ''}`} style={`display: flex; align-items: center; justify-content: space-between; border: 2px solid ${idx === 0 ? '#2563eb' : '#e2e8f0'}; border-radius: 12px; padding: 14px 16px; cursor: pointer; transition: all 0.2s; background: ${idx === 0 ? '#f0f7ff' : '#fff'}; position: relative;`}>
+                                                    <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                                                        <input type="radio" name="selected_offer" value={idx} checked={idx === 0} class="offer-radio" style="width: 18px; height: 18px; cursor: pointer; accent-color: #2563eb;" />
+                                                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                                                            <span class="offer-option-title" style="font-weight: 700; color: #1e293b; font-size: 14.5px;">{off.title}</span>
+                                                            <span class="offer-option-qty" style="display: inline-flex; align-items: center; gap: 4px; background: #e2e8f0; color: #475569; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; width: max-content;">📦 x{off.qty}</span>
+                                                        </div>
+                                                    </div>
+                                                    <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 2px;">
+                                                        <span class="offer-option-price" style="font-size: 17.5px; font-weight: 800; color: #2563eb;">{fmtPrice(off.price)} {p.currency}</span>
+                                                        {off.oldPrice && (
+                                                            <div style="display: flex; align-items: center; gap: 6px;">
+                                                                <span class="offer-option-oldprice" style="font-size: 13px; text-decoration: line-through; color: #94a3b8;">{fmtPrice(off.oldPrice)} {p.currency}</span>
+                                                                <span class="offer-option-badge" style="background: #dcfce7; color: #15803d; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 6px;">-{pct}%</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )
+                        }
+
                         {
-                            p.showQuantity === "yes" && p.bundle !== "yes" && (
+                            p.showQuantity === "yes" && p.bundle !== "yes" && (!p.offres || p.offres.length === 0) && (
                                 <div class="qty-action-wrap">
                                     <label
                                         class="qty-action-lbl"
@@ -425,7 +452,7 @@ const cleanDesc = (p.description || "")
                         <div class="order-summary">
                             <div class="sum-row">
                                 <span>Prix du produit</span>
-                                <span>{fmtPrice(p.price)} {p.currency}</span>
+                                <span id="sum-price">{fmtPrice(p.price)} {p.currency}</span>
                             </div>
                             <div class="sum-row">
                                 <span>Quantité</span>
@@ -509,6 +536,13 @@ const cleanDesc = (p.description || "")
         const p = window.productData;
         let qty = 1;
         let price = p.price;
+        let selectedOffer = null;
+
+        if (p.offres && p.offres.length > 0) {
+            selectedOffer = p.offres[0];
+            qty = selectedOffer.qty;
+            price = selectedOffer.price;
+        }
 
         if (p.isLandingPage === "yes" || p.modeBlack === "yes") {
             if (p.isLandingPage === "yes")
@@ -526,10 +560,77 @@ const cleanDesc = (p.description || "")
         const sumTotal = document.getElementById("sum-total");
 
         const updateTotal = () => {
+            let totalAmount = price * qty;
+            let displayPrice = price;
+            if (selectedOffer) {
+                totalAmount = selectedOffer.price;
+                displayPrice = selectedOffer.price;
+            }
             if (sumQty) sumQty.innerText = qty.toString();
             if (sumTotal)
-                sumTotal.innerText = fmtPrice(price * qty) + " " + p.currency;
+                sumTotal.innerText = fmtPrice(totalAmount) + " " + p.currency;
+
+            const sumPriceEl = document.getElementById("sum-price");
+            if (sumPriceEl) {
+                sumPriceEl.innerText = fmtPrice(selectedOffer ? selectedOffer.price : price) + " " + p.currency;
+            }
+
+            // Update main product card price displays
+            const mainPriceEl = document.getElementById("d-price");
+            const mainPriceOldEl = document.getElementById("d-price-old");
+            const mainPriceSaveEl = document.getElementById("d-price-save");
+            if (mainPriceEl) {
+                mainPriceEl.innerText = fmtPrice(displayPrice) + " " + p.currency;
+            }
+            if (selectedOffer) {
+                if (mainPriceOldEl) {
+                    if (selectedOffer.oldPrice) {
+                        mainPriceOldEl.style.display = "inline";
+                        mainPriceOldEl.innerText = fmtPrice(selectedOffer.oldPrice) + " " + p.currency;
+                    } else {
+                        mainPriceOldEl.style.display = "none";
+                    }
+                }
+                if (mainPriceSaveEl) {
+                    if (selectedOffer.oldPrice) {
+                        mainPriceSaveEl.style.display = "inline";
+                        mainPriceSaveEl.innerText = "Économisez " + fmtPrice(selectedOffer.oldPrice - selectedOffer.price) + " " + p.currency + " (-" + Math.round((selectedOffer.oldPrice - selectedOffer.price) / selectedOffer.oldPrice * 100) + "%)";
+                    } else {
+                        mainPriceSaveEl.style.display = "none";
+                    }
+                }
+            }
         };
+
+        // Initialize display total
+        updateTotal();
+
+        // Listen for offer selector radio changes
+        const offerRadios = document.querySelectorAll(".offer-radio");
+        offerRadios.forEach((radio) => {
+            radio.addEventListener("change", (e) => {
+                const idx = parseInt(e.target.value);
+                selectedOffer = p.offres[idx];
+                qty = selectedOffer.qty;
+                price = selectedOffer.price;
+
+                // Update active option card styles
+                document.querySelectorAll(".offer-option-card").forEach((card, cIdx) => {
+                    const r = card.querySelector(".offer-radio");
+                    if (cIdx === idx) {
+                        if (r) r.checked = true;
+                        card.style.borderColor = "#2563eb";
+                        card.style.background = "#f0f7ff";
+                    } else {
+                        if (r) r.checked = false;
+                        card.style.borderColor = "#e2e8f0";
+                        card.style.background = "#fff";
+                    }
+                });
+
+                updateTotal();
+            });
+        });
 
         if (qtyMinus && qtyPlus && qtyVal) {
             qtyMinus.addEventListener("click", () => {
@@ -602,10 +703,17 @@ const cleanDesc = (p.description || "")
             form.addEventListener("submit", async (e) => {
                 e.preventDefault();
 
+                let totalAmount = price * qty;
+                let productName = p.title;
+                if (selectedOffer) {
+                    totalAmount = selectedOffer.price;
+                    productName = `${p.title} (${selectedOffer.title})`;
+                }
+
                 firePixel("InitiateCheckout", {
-                    value: price * qty,
+                    value: totalAmount,
                     currency: p.currency === "CFA" ? "XOF" : p.currency,
-                    content_name: p.title,
+                    content_name: productName,
                 });
 
                 const ok = await new Promise((res) => {
@@ -638,8 +746,8 @@ const cleanDesc = (p.description || "")
                     "adresse",
                     document.getElementById("adr").value,
                 );
-                formData.append("produit", p.title);
-                formData.append("prix", price * qty + " " + p.currency);
+                formData.append("produit", productName);
+                formData.append("prix", totalAmount + " " + p.currency);
                 formData.append("quantity", qty);
                 formData.append("platform", "AstroJS");
                 formData.append("order_id", cartSessionId);
@@ -655,7 +763,7 @@ const cleanDesc = (p.description || "")
                 Object.entries(utms).forEach(([k, v]) => formData.append(k, v));
 
                 try {
-                    // 1) Write to Google Sheets (existing)
+                    // 1) Write to Google Sheets
                     await fetch(GOOGLE_SHEETS_WEBAPP_URL, {
                         method: "POST",
                         body: formData,
@@ -669,10 +777,10 @@ const cleanDesc = (p.description || "")
                         telephone: document.getElementById("tel").value,
                         pays: document.getElementById("pays").value,
                         adresse: document.getElementById("adr").value,
-                        produit: p.title,
-                        prix: price * qty + " " + p.currency,
+                        produit: productName,
+                        prix: totalAmount + " " + p.currency,
                         quantity: qty,
-                        total: price * qty,
+                        total: totalAmount,
                         code: p.code || "",
                         status: "COMPLETED",
                         ...getUTMParams(),
@@ -685,9 +793,9 @@ const cleanDesc = (p.description || "")
                     }).catch(() => {});
 
                     firePixel("Purchase", {
-                        value: price * qty,
+                        value: totalAmount,
                         currency: p.currency === "CFA" ? "XOF" : p.currency,
-                        content_name: p.title,
+                        content_name: productName,
                         content_ids: [p.code || window.location.pathname],
                         content_type: "product",
                         num_items: qty,
@@ -696,9 +804,9 @@ const cleanDesc = (p.description || "")
                         "last_order",
                         JSON.stringify({
                             customer_name: document.getElementById("nom").value,
-                            product_name: p.title,
+                            product_name: productName,
                             quantity: qty,
-                            total: price * qty,
+                            total: totalAmount,
                         }),
                     );
                     window.location.href = "/merci";
@@ -734,13 +842,20 @@ const cleanDesc = (p.description || "")
                     if (currentStr === lastAbandonedStr) return;
                     lastAbandonedStr = currentStr;
 
+                    let totalAmount = price * qty;
+                    let productName = p.title;
+                    if (selectedOffer) {
+                        totalAmount = selectedOffer.price;
+                        productName = `${p.title} (${selectedOffer.title})`;
+                    }
+
                     const formData = new FormData();
                     formData.append("nom", nom);
                     formData.append("telephone", tel);
                     formData.append("pays", pays);
                     formData.append("adresse", adr);
-                    formData.append("produit", p.title);
-                    formData.append("prix", price * qty + " " + p.currency);
+                    formData.append("produit", productName);
+                    formData.append("prix", totalAmount + " " + p.currency);
                     formData.append("quantity", qty);
                     formData.append("status", "ABANDONED");
                     formData.append("code", p.code || "");

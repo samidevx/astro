@@ -267,6 +267,13 @@ function renderProductForm(el, p, id) {
           <div class="form-group"><label class="form-label">Popup (yes/no, %)</label><input class="form-control" id="p-remisePopup" value="${p?.remisePopup||'no, 10'}"></div>
           <div class="form-group full"><label class="form-label">Featured Image URL *</label><input class="form-control" id="p-img" value="${p?.featuredImage||''}" placeholder="https://…" required></div>
           <div class="form-group full"><label class="form-label">Gallery URLs (one per line)</label><textarea class="form-control" id="p-gallery" style="height:90px;">${(p?.gallery||[]).join('\n')}</textarea></div>
+          <div class="form-group full">
+            <label class="form-label" style="display:flex; justify-content:space-between; align-items:center;">
+              <span>Product Offers / Bundles</span>
+              <button type="button" class="btn btn-ghost btn-sm" id="addOfferBtn" style="padding:4px 8px; font-size:11px;"><i class="fa fa-plus"></i> Add Offer</button>
+            </label>
+            <div id="offers-container" style="display:flex; flex-direction:column; gap:10px; margin-top:8px;"></div>
+          </div>
           <div class="form-group full"><label class="form-label">Description (HTML)</label><textarea class="form-control" id="p-desc" style="height:140px;">${p?.description||''}</textarea></div>
         </div>
         <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:24px;">
@@ -276,6 +283,44 @@ function renderProductForm(el, p, id) {
       </form>
     </div>`;
 
+  const offersContainer = el.querySelector('#offers-container');
+  const addOfferBtn = el.querySelector('#addOfferBtn');
+
+  function createOfferRowHTML(o = {}) {
+    const div = document.createElement('div');
+    div.className = 'offer-row';
+    div.style = 'display:flex; gap:10px; align-items:center; background:rgba(255,255,255,0.02); padding:10px; border:1px dashed var(--border); border-radius:8px;';
+    div.innerHTML = `
+      <div style="flex:0 0 65px;">
+        <label class="form-label" style="font-size:9px;">Qty</label>
+        <input type="number" class="form-control offer-qty" value="${o.qty || 1}" required style="padding:6px;">
+      </div>
+      <div style="flex:2;">
+        <label class="form-label" style="font-size:9px;">Offer Title / Description</label>
+        <input type="text" class="form-control offer-title" value="${o.title || ''}" placeholder="e.g. 1 Kit (Offre Découverte)" required style="padding:6px;">
+      </div>
+      <div style="flex:1;">
+        <label class="form-label" style="font-size:9px;">Price</label>
+        <input type="number" class="form-control offer-price" value="${o.price || 0}" required style="padding:6px;">
+      </div>
+      <div style="flex:1;">
+        <label class="form-label" style="font-size:9px;">Old Price</label>
+        <input type="number" class="form-control offer-oldPrice" value="${o.oldPrice || ''}" style="padding:6px;">
+      </div>
+      <button type="button" class="btn btn-danger btn-sm remove-offer-btn" style="margin-top:15px; padding:6px 10px;"><i class="fa fa-trash"></i></button>
+    `;
+    div.querySelector('.remove-offer-btn').onclick = () => div.remove();
+    return div;
+  }
+
+  if (p?.offres && Array.isArray(p.offres)) {
+    p.offres.forEach(o => offersContainer.appendChild(createOfferRowHTML(o)));
+  }
+
+  addOfferBtn.onclick = () => {
+    offersContainer.appendChild(createOfferRowHTML({ qty: offersContainer.children.length + 1 }));
+  };
+
   el.querySelector('#backBtn').onclick = () => navigate('/admin/products');
   el.querySelector('#cancelBtn').onclick = () => navigate('/admin/products');
 
@@ -283,6 +328,15 @@ function renderProductForm(el, p, id) {
     e.preventDefault();
     const btn = document.getElementById('saveBtn');
     btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving…';
+
+    const offers = Array.from(document.querySelectorAll('.offer-row')).map(row => {
+      return {
+        qty: parseInt(row.querySelector('.offer-qty').value) || 1,
+        title: row.querySelector('.offer-title').value.trim(),
+        price: parseInt(row.querySelector('.offer-price').value) || 0,
+        oldPrice: parseInt(row.querySelector('.offer-oldPrice').value) || null
+      };
+    });
 
     const data = {
       id: document.getElementById('p-id').value.trim(),
@@ -299,6 +353,7 @@ function renderProductForm(el, p, id) {
       couleur: document.getElementById('p-couleur').value.trim(),
       taille: document.getElementById('p-taille').value.trim(),
       bundle: document.getElementById('p-bundle').value,
+      offres: offers,
       countdown: document.getElementById('p-countdown').value,
       isLandingPage: document.getElementById('p-isLandingPage').value,
       modeBlack: document.getElementById('p-modeBlack').value,
