@@ -760,17 +760,16 @@ const cleanDesc = (p.description || "")
                 if (vTaille) formData.append("taille", vTaille.value);
 
                 const utms = getUTMParams();
-                Object.entries(utms).forEach(([k, v]) => formData.append(k, v));
-
-                try {
-                    // 1) Write to Google Sheets
-                    await fetch(GOOGLE_SHEETS_WEBAPP_URL, {
+                                 try {
+                    // 1) Write to Google Sheets (fire-and-forget with keepalive to outlive navigation)
+                    fetch(GOOGLE_SHEETS_WEBAPP_URL, {
                         method: "POST",
                         body: formData,
                         mode: "no-cors",
-                    });
+                        keepalive: true,
+                    }).catch(() => {});
 
-                    // 2) Dual-write to Cloudflare KV via our API (fire-and-forget)
+                    // 2) Dual-write to Cloudflare KV via our API (fire-and-forget with keepalive)
                     const kvPayload = {
                         order_id: cartSessionId,
                         nom: document.getElementById("nom").value,
@@ -790,6 +789,7 @@ const cleanDesc = (p.description || "")
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify(kvPayload),
+                        keepalive: true,
                     }).catch(() => {});
 
                     firePixel("Purchase", {
