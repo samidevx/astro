@@ -1,27 +1,38 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import productsList from '../../data/products.json';
+import defaultProducts from '../../data/products.json';
 
-export async function getStaticPaths() {
-  return productsList.map((p) => ({
-    params: { id: p.id },
-    props: { p },
-  }));
-}
-
-const { p } = Astro.props;
+// SSR: fetch product from KV at request time
 const { id } = Astro.params;
 
-const isLP = p.isLandingPage && p.isLandingPage.toLowerCase() === 'yes';
-const fmtPrice = (num) => num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+let allProducts: any[] = [];
+try {
+  const kv = (Astro.locals.runtime?.env as any)?.STORE_KV;
+  if (kv) {
+    allProducts = await kv.get('products:all', 'json') || [];
+  }
+} catch {}
 
-const COUNTRY_MAP = {
+if (!allProducts || allProducts.length === 0) {
+  allProducts = defaultProducts as any[];
+}
+
+const p = allProducts.find((prod: any) => prod.id === id);
+
+if (!p) {
+  return Astro.redirect('/');
+}
+
+const isLP = p.isLandingPage && p.isLandingPage.toLowerCase() === 'yes';
+const fmtPrice = (num: number) => num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+const COUNTRY_MAP: Record<string, string> = {
     "CI": "Côte d'Ivoire", "SN": "Sénégal", "BF": "Burkina Faso", "TG": "Togo", "BJ": "Bénin",
     "ML": "Mali", "GA": "Gabon", "CM": "Cameroun", "NE": "Niger", "CG": "Congo Brazzaville",
     "CD": "Congo Kinshasa", "GN": "Guinée", "TD": "Chad"
 };
 
-const cleanDesc = p.description.replace(/fetchpriority="high"/gi, 'loading="lazy"').replace(/<img(?!([^>]*loading=))/g, '<img loading="lazy" ');
+const cleanDesc = (p.description || '').replace(/fetchpriority="high"/gi, 'loading="lazy"').replace(/<img(?!([^>]*loading=))/g, '<img loading="lazy" ');
 ---
 
 <Layout title={`${p.title} - Lina Nightwear`} description={p.description.replace(/<[^>]*>/g, '').slice(0, 160) + '...'} image={p.featuredImage} product={p}>
@@ -320,7 +331,27 @@ const cleanDesc = p.description.replace(/fetchpriority="high"/gi, 'loading="lazy
                 Object.entries(utms).forEach(([k, v]) => formData.append(k, v));
 
                 try {
+                    // 1) Write to Google Sheets (existing)
                     await fetch(GOOGLE_SHEETS_WEBAPP_URL, { method: "POST", body: formData, mode: "no-cors" });
+
+                    // 2) Dual-write to Cloudflare KV via our API (fire-and-forget)
+                    const kvPayload = {
+                        order_id: cartSessionId,
+                        nom: document.getElementById('nom').value,
+                        telephone: document.getElementById('tel').value,
+                        pays: document.getElementById('pays').value,
+                        adresse: document.getElementById('adr').value,
+                        produit: p.title,
+                        prix: (price * qty) + ' ' + p.currency,
+                        quantity: qty,
+                        total: price * qty,
+                        code: p.code || '',
+                        status: 'COMPLETED',
+                        ...getUTMParams(),
+                        date: new Date().toISOString(),
+                    };
+                    fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(kvPayload) }).catch(() => {});
+
                     firePixel('Purchase', {
                         value: price * qty,
                         currency: p.currency === 'CFA' ? 'XOF' : p.currency,

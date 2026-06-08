@@ -4,3 +4,9 @@ compatibility_flags = [ "nodejs_compat" ]
 
 [assets]
 directory = "./dist/client"
+
+# Run: npx wrangler kv namespace create STORE_KV
+# Then replace PLACEHOLDER_KV_ID with your KV namespace ID below
+[[kv_namespaces]]
+binding = "STORE_KV"
+id = "PLACEHOLDER_KV_ID"

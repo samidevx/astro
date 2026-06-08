@@ -1,19 +1,20 @@
 ---
-import Layout from '../../layouts/Layout.astro';
+// Middleware already validates session — if we're here, user is authenticated
 ---
-
-<Layout title="Admin Panel">
-    <div id="admin-root"></div>
-</Layout>
-
-<script>
-    import { router } from '../../utils/admin_app.js';
-    
-    document.addEventListener('DOMContentLoaded', () => {
-        router();
-    });
-
-    window.addEventListener('popstate', () => {
-        router();
-    });
-</script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard — Lina Nightwear</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="/admin.css" />
+</head>
+<body class="admin-body">
+  <div id="admin-root"></div>
+  <script type="module" src="/admin-app.js"></script>
+</body>
+</html>

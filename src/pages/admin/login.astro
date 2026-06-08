@@ -1,0 +1,256 @@
+---
+// If already authenticated, redirect to dashboard
+const cookieHeader = Astro.request.headers.get('cookie') || '';
+const cookies = Object.fromEntries(
+  cookieHeader.split(';').map(c => {
+    const [k, ...v] = c.trim().split('=');
+    return [k, v.join('=')];
+  })
+);
+const sessionToken = cookies['admin_token'];
+if (sessionToken) {
+  const kv = (Astro.locals.runtime?.env as any)?.STORE_KV;
+  if (kv) {
+    const session = await kv.get(`session:${sessionToken}`, 'json') as { expires_at: number } | null;
+    if (session && Date.now() < session.expires_at) {
+      return Astro.redirect('/admin');
+    }
+  }
+}
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Login — Lina Nightwear</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0f1e;
+      --surface: #111827;
+      --border: rgba(255,255,255,0.08);
+      --accent: #6366f1;
+      --accent2: #8b5cf6;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --red: #ef4444;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(99,102,241,0.25) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.15;
+      pointer-events: none;
+    }
+    .orb1 { width: 400px; height: 400px; background: #6366f1; top: -100px; right: -100px; }
+    .orb2 { width: 300px; height: 300px; background: #8b5cf6; bottom: -80px; left: -80px; }
+    .login-wrap {
+      width: 100%;
+      max-width: 420px;
+      padding: 24px;
+      position: relative;
+      z-index: 1;
+    }
+    .brand {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .brand-icon {
+      width: 64px; height: 64px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 18px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px;
+      margin: 0 auto 16px;
+      box-shadow: 0 8px 32px rgba(99,102,241,0.4);
+    }
+    .brand h1 { font-size: 22px; font-weight: 800; }
+    .brand p { color: var(--muted); font-size: 14px; margin-top: 4px; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 36px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 24px 64px rgba(0,0,0,0.4);
+    }
+    .form-group { margin-bottom: 20px; }
+    label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .input-wrap { position: relative; }
+    .input-wrap i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 14px; }
+    input[type="password"], input[type="text"] {
+      width: 100%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 13px 14px 13px 40px;
+      color: var(--text);
+      font-size: 15px;
+      font-family: inherit;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+    }
+    input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
+    .show-pass {
+      position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer; color: var(--muted); font-size: 14px;
+      transition: color 0.2s;
+    }
+    .show-pass:hover { color: var(--text); }
+    .btn-login {
+      width: 100%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.15s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      margin-top: 8px;
+    }
+    .btn-login:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-login:active { transform: translateY(0); }
+    .btn-login:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .error-msg {
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      color: #fca5a5;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+    }
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+
+  <div class="login-wrap">
+    <div class="brand">
+      <div class="brand-icon">🛒</div>
+      <h1>Admin Dashboard</h1>
+      <p>Lina Nightwear — Store Management</p>
+    </div>
+
+    <div class="card">
+      <div class="error-msg" id="errorMsg">
+        <i class="fa fa-circle-exclamation"></i>
+        <span id="errorText">Invalid password. Please try again.</span>
+      </div>
+
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="adminPass">Password</label>
+          <div class="input-wrap">
+            <i class="fa fa-lock"></i>
+            <input type="password" id="adminPass" placeholder="Enter admin password" autocomplete="current-password" required />
+            <button type="button" class="show-pass" id="togglePass" aria-label="Show password">
+              <i class="fa fa-eye" id="eyeIcon"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-login" id="loginBtn">
+          <i class="fa fa-sign-in-alt"></i>
+          <span id="btnText">Sign In</span>
+          <div class="spinner" id="spinner"></div>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('loginForm');
+    const btn = document.getElementById('loginBtn');
+    const btnText = document.getElementById('btnText');
+    const spinner = document.getElementById('spinner');
+    const errorMsg = document.getElementById('errorMsg');
+    const errorText = document.getElementById('errorText');
+    const togglePass = document.getElementById('togglePass');
+    const passInput = document.getElementById('adminPass');
+    const eyeIcon = document.getElementById('eyeIcon');
+
+    togglePass.addEventListener('click', () => {
+      const isPass = passInput.type === 'password';
+      passInput.type = isPass ? 'text' : 'password';
+      eyeIcon.className = isPass ? 'fa fa-eye-slash' : 'fa fa-eye';
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const password = passInput.value;
+
+      btn.disabled = true;
+      btnText.textContent = 'Signing in...';
+      spinner.style.display = 'block';
+      errorMsg.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password }),
+        });
+
+        if (res.ok) {
+          window.location.href = '/admin';
+        } else {
+          const data = await res.json();
+          errorMsg.style.display = 'flex';
+          errorText.textContent = data.error || 'Invalid password. Please try again.';
+          btn.disabled = false;
+          btnText.textContent = 'Sign In';
+          spinner.style.display = 'none';
+          passInput.value = '';
+          passInput.focus();
+        }
+      } catch {
+        errorMsg.style.display = 'flex';
+        errorText.textContent = 'Connection error. Please try again.';
+        btn.disabled = false;
+        btnText.textContent = 'Sign In';
+        spinner.style.display = 'none';
+      }
+    });
+  </script>
+</body>
+</html>
