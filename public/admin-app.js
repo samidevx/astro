@@ -379,7 +379,46 @@ function renderProductForm(el, p, id) {
 
 // ── Orders ────────────────────────────────────────────────
 async function renderOrders(el) {
-  el.innerHTML = `<div class="admin-topbar"><h1>Orders</h1><div style="display:flex;gap:8px;"><select class="filter-select" id="statusFilter"><option value="">All Status</option><option>COMPLETED</option><option>ABANDONED</option></select><div class="search-wrap"><i class="fa fa-search"></i><input class="search-input" id="oSearch" placeholder="Search name, product…"></div><button class="btn btn-ghost btn-sm" id="exportCsv"><i class="fa fa-download"></i>CSV</button></div></div><div class="table-card"><table class="admin-table"><thead><tr><th>Date</th><th>Order ID</th><th>Customer</th><th>Product</th><th>Qty</th><th>Total</th><th>Country</th><th>Status</th></tr></thead><tbody id="oBody"><tr><td colspan="8"><div class="empty-state"><i class="fa fa-spinner fa-spin"></i><p>Loading…</p></div></td></tr></tbody></table></div>`;
+  el.innerHTML = `<div class="admin-topbar">
+    <h1>Orders</h1>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <div style="display:flex;gap:6px;align-items:center;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:9px;padding:2px 10px;">
+        <span style="font-size:10px;color:var(--muted2);text-transform:uppercase;font-weight:700;letter-spacing:0.05em;">From</span>
+        <input type="date" class="filter-select" id="startDateFilter" style="background:transparent;border:none;padding:5px 0;font-family:inherit;font-size:13px;color:#fff;outline:none;cursor:pointer;">
+        <span style="font-size:10px;color:var(--muted2);text-transform:uppercase;font-weight:700;letter-spacing:0.05em;">To</span>
+        <input type="date" class="filter-select" id="endDateFilter" style="background:transparent;border:none;padding:5px 0;font-family:inherit;font-size:13px;color:#fff;outline:none;cursor:pointer;">
+      </div>
+      <select class="filter-select" id="statusFilter"><option value="">All Status</option><option>COMPLETED</option><option>ABANDONED</option></select>
+      <div class="search-wrap"><i class="fa fa-search"></i><input class="search-input" id="oSearch" placeholder="Search name, product…"></div>
+      <button class="btn btn-ghost btn-sm" id="exportCsv"><i class="fa fa-download"></i>CSV</button>
+    </div>
+  </div>
+  <div class="table-card">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Order ID</th>
+          <th>Customer</th>
+          <th>Product</th>
+          <th>Qty</th>
+          <th>Total</th>
+          <th>Country</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="oBody">
+        <tr>
+          <td colspan="8">
+            <div class="empty-state">
+              <i class="fa fa-spinner fa-spin"></i>
+              <p>Loading…</p>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>`;
 
   const orders = await api.getOrders();
   let filtered = [...orders];
@@ -402,14 +441,45 @@ async function renderOrders(el) {
   const applyFilters = () => {
     const q = document.getElementById('oSearch').value.toLowerCase();
     const s = document.getElementById('statusFilter').value;
-    filtered = orders.filter(o =>
-      (!q || o.nom?.toLowerCase().includes(q) || o.produit?.toLowerCase().includes(q) || o.telephone?.includes(q)) &&
-      (!s || o.status === s)
-    );
+    const startVal = document.getElementById('startDateFilter').value;
+    const endVal = document.getElementById('endDateFilter').value;
+
+    filtered = orders.filter(o => {
+      const matchesSearch = !q || o.nom?.toLowerCase().includes(q) || o.produit?.toLowerCase().includes(q) || o.telephone?.includes(q);
+      const matchesStatus = !s || o.status === s;
+
+      let matchesDate = true;
+      const orderDateStr = o.date || o.savedAt;
+      if (orderDateStr) {
+        try {
+          const d = new Date(orderDateStr);
+          if (!isNaN(d.getTime())) {
+            const orderDateFormatted = d.toISOString().split('T')[0];
+            if (startVal && orderDateFormatted < startVal) {
+              matchesDate = false;
+            }
+            if (endVal && orderDateFormatted > endVal) {
+              matchesDate = false;
+            }
+          } else if (startVal || endVal) {
+            matchesDate = false;
+          }
+        } catch (e) {
+          if (startVal || endVal) matchesDate = false;
+        }
+      } else if (startVal || endVal) {
+        matchesDate = false;
+      }
+
+      return matchesSearch && matchesStatus && matchesDate;
+    });
     render();
   };
+
   document.getElementById('oSearch').oninput = applyFilters;
   document.getElementById('statusFilter').onchange = applyFilters;
+  document.getElementById('startDateFilter').onchange = applyFilters;
+  document.getElementById('endDateFilter').onchange = applyFilters;
 
   document.getElementById('exportCsv').onclick = () => {
     const headers = ['Date','Order ID','Name','Phone','Country','City','Product','Qty','Total','Status'];

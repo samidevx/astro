@@ -245,7 +245,7 @@ body.admin-body {
 .search-input:focus { border-color: var(--accent); }
 .search-input::placeholder { color: var(--muted2); }
 
-select.filter-select {
+.filter-select {
   background: rgba(255,255,255,0.05);
   border: 1px solid var(--border);
   border-radius: 9px;
@@ -254,6 +254,10 @@ select.filter-select {
   outline: none; cursor: pointer;
 }
 select.filter-select option { background: var(--surface2); }
+input[type="date"].filter-select::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+}
 
 /* ---- MODAL ---- */
 .modal-overlay {
