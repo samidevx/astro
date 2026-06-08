@@ -68,112 +68,178 @@ function isActive(href, path) {
 
 // ── Dashboard ────────────────────────────────────────────
 async function renderDashboard(el) {
-  el.innerHTML = `<div class="admin-topbar"><h1>Dashboard</h1></div><div id="dash-content"><p style="color:var(--muted);padding:40px 0;">Loading...</p></div>`;
+  el.innerHTML = `<div class="admin-topbar">
+    <h1>Dashboard</h1>
+    <div style="display:flex;gap:6px;align-items:center;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:9px;padding:2px 10px;">
+      <span style="font-size:10px;color:var(--muted2);text-transform:uppercase;font-weight:700;letter-spacing:0.05em;">From</span>
+      <input type="date" class="filter-select" id="dashStartDateFilter" style="background:transparent;border:none;padding:5px 0;font-family:inherit;font-size:13px;color:#fff;outline:none;cursor:pointer;">
+      <span style="font-size:10px;color:var(--muted2);text-transform:uppercase;font-weight:700;letter-spacing:0.05em;">To</span>
+      <input type="date" class="filter-select" id="dashEndDateFilter" style="background:transparent;border:none;padding:5px 0;font-family:inherit;font-size:13px;color:#fff;outline:none;cursor:pointer;">
+    </div>
+  </div>
+  <div id="dash-content"><p style="color:var(--muted);padding:40px 0;">Loading...</p></div>`;
 
   const [orders, products] = await Promise.all([api.getOrders(), api.getProducts()]);
-  const completed = orders.filter(o => o.status === 'COMPLETED');
-  const revenue = completed.reduce((s, o) => s + (Number(o.total) || 0), 0);
-  const abandoned = orders.filter(o => o.status === 'ABANDONED').length;
-  const convRate = orders.length ? ((completed.length / orders.length) * 100).toFixed(1) : '0.0';
 
-  // Group revenue by date (last 14 days)
-  const days = 14;
-  const labels = [], revData = [], ordData = [];
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i);
-    const key = d.toISOString().slice(0, 10);
-    labels.push(d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }));
-    const dayOrders = completed.filter(o => (o.date || o.savedAt || '').startsWith(key));
-    revData.push(dayOrders.reduce((s, o) => s + (Number(o.total) || 0), 0));
-    ordData.push(dayOrders.length);
-  }
+  let revChart = null;
+  let countChart = null;
 
-  // Orders by country
-  const countryCounts = {};
-  orders.forEach(o => { if (o.pays) countryCounts[o.pays] = (countryCounts[o.pays] || 0) + 1; });
-  const countryLabels = Object.keys(countryCounts);
-  const countryData = Object.values(countryCounts);
+  const updateDashboard = () => {
+    const startVal = document.getElementById('dashStartDateFilter').value;
+    const endVal = document.getElementById('dashEndDateFilter').value;
 
-  document.getElementById('dash-content').innerHTML = `
-    <div class="kpi-grid">
-      <div class="kpi-card kpi-green">
-        <div class="kpi-icon"><i class="fa fa-coins"></i></div>
-        <div class="kpi-lbl">Total Revenue</div>
-        <div class="kpi-val">${fmtPrice(revenue)} CFA</div>
-        <div class="kpi-sub">${completed.length} completed orders</div>
-      </div>
-      <div class="kpi-card kpi-blue">
-        <div class="kpi-icon"><i class="fa fa-shopping-bag"></i></div>
-        <div class="kpi-lbl">Total Orders</div>
-        <div class="kpi-val">${orders.length}</div>
-        <div class="kpi-sub">${abandoned} abandoned</div>
-      </div>
-      <div class="kpi-card kpi-orange">
-        <div class="kpi-icon"><i class="fa fa-percent"></i></div>
-        <div class="kpi-lbl">Conversion Rate</div>
-        <div class="kpi-val">${convRate}%</div>
-        <div class="kpi-sub">Completed / total</div>
-      </div>
-      <div class="kpi-card kpi-purple">
-        <div class="kpi-icon"><i class="fa fa-box"></i></div>
-        <div class="kpi-lbl">Products</div>
-        <div class="kpi-val">${products.length}</div>
-        <div class="kpi-sub"><a href="/admin/products" data-nav style="color:var(--accent);text-decoration:none;">Manage →</a></div>
-      </div>
-    </div>
-
-    <div class="charts-grid">
-      <div class="chart-card">
-        <div class="chart-title">Revenue (Last ${days} days)</div>
-        <div class="chart-wrap"><canvas id="revenueChart"></canvas></div>
-      </div>
-      <div class="chart-card">
-        <div class="chart-title">Orders by Country</div>
-        <div class="chart-wrap"><canvas id="countryChart"></canvas></div>
-      </div>
-    </div>
-
-    <div class="table-card">
-      <div class="table-header"><span class="table-title">Recent Orders</span></div>
-      <table class="admin-table">
-        <thead><tr><th>Date</th><th>Customer</th><th>Product</th><th>Total</th><th>Status</th></tr></thead>
-        <tbody>
-          ${orders.slice(0, 8).map(o => `
-            <tr>
-              <td style="color:var(--muted);font-size:12px;">${fmtDate(o.date || o.savedAt)}</td>
-              <td><strong>${o.nom}</strong><br><small style="color:var(--muted);">${o.telephone || ''}</small></td>
-              <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${o.produit}</td>
-              <td>${fmtPrice(o.total || 0)} CFA</td>
-              <td>${statusBadge(o.status)}</td>
-            </tr>`).join('')}
-          ${orders.length === 0 ? `<tr><td colspan="5"><div class="empty-state"><i class="fa fa-inbox"></i><p>No orders yet.</p></div></td></tr>` : ''}
-        </tbody>
-      </table>
-    </div>`;
-
-  document.getElementById('dash-content').querySelector('[data-nav]')?.addEventListener('click', e => { e.preventDefault(); navigate('/admin/products'); });
-
-  // Charts
-  const chartDefaults = { color: '#94a3b8', borderColor: 'rgba(255,255,255,0.07)' };
-  if (window.Chart) {
-    new Chart(document.getElementById('revenueChart'), {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [{ label: 'Revenue (CFA)', data: revData, borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,0.1)', fill: true, tension: 0.4, pointRadius: 3 }]
-      },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
+    const filteredOrders = orders.filter(o => {
+      let matchesDate = true;
+      const orderDateStr = o.date || o.savedAt;
+      if (orderDateStr) {
+        try {
+          const d = new Date(orderDateStr);
+          if (!isNaN(d.getTime())) {
+            const orderDateFormatted = d.toISOString().split('T')[0];
+            if (startVal && orderDateFormatted < startVal) {
+              matchesDate = false;
+            }
+            if (endVal && orderDateFormatted > endVal) {
+              matchesDate = false;
+            }
+          } else if (startVal || endVal) {
+            matchesDate = false;
+          }
+        } catch (e) {
+          if (startVal || endVal) matchesDate = false;
+        }
+      } else if (startVal || endVal) {
+        matchesDate = false;
+      }
+      return matchesDate;
     });
 
-    if (countryLabels.length > 0) {
-      const colors = ['#6366f1','#8b5cf6','#3b82f6','#10b981','#f59e0b','#ef4444','#14b8a6'];
-      new Chart(document.getElementById('countryChart'), {
-        type: 'doughnut',
-        data: { labels: countryLabels, datasets: [{ data: countryData, backgroundColor: colors, borderWidth: 0 }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 11 }, padding: 12 } } } }
-      });
+    const completed = filteredOrders.filter(o => o.status === 'COMPLETED');
+    const revenue = completed.reduce((s, o) => s + (Number(o.total) || 0), 0);
+    const abandoned = filteredOrders.filter(o => o.status === 'ABANDONED').length;
+    const convRate = filteredOrders.length ? ((completed.length / filteredOrders.length) * 100).toFixed(1) : '0.0';
+
+    let labels = [], revData = [], ordData = [];
+    if (startVal && endVal) {
+      const start = new Date(startVal);
+      const end = new Date(endVal);
+      const diffTime = Math.abs(end - start);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      const displayDays = Math.min(diffDays, 60);
+
+      for (let i = 0; i < displayDays; i++) {
+        const d = new Date(start);
+        d.setDate(start.getDate() + i);
+        const key = d.toISOString().slice(0, 10);
+        labels.push(d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }));
+        const dayOrders = completed.filter(o => (o.date || o.savedAt || '').startsWith(key));
+        revData.push(dayOrders.reduce((s, o) => s + (Number(o.total) || 0), 0));
+        ordData.push(dayOrders.length);
+      }
+    } else {
+      const days = 14;
+      for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        const key = d.toISOString().slice(0, 10);
+        labels.push(d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }));
+        const dayOrders = completed.filter(o => (o.date || o.savedAt || '').startsWith(key));
+        revData.push(dayOrders.reduce((s, o) => s + (Number(o.total) || 0), 0));
+        ordData.push(dayOrders.length);
+      }
     }
-  }
+
+    const countryCounts = {};
+    filteredOrders.forEach(o => { if (o.pays) countryCounts[o.pays] = (countryCounts[o.pays] || 0) + 1; });
+    const countryLabels = Object.keys(countryCounts);
+    const countryData = Object.values(countryCounts);
+
+    document.getElementById('dash-content').innerHTML = `
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-green">
+          <div class="kpi-icon"><i class="fa fa-coins"></i></div>
+          <div class="kpi-lbl">Total Revenue</div>
+          <div class="kpi-val">${fmtPrice(revenue)} CFA</div>
+          <div class="kpi-sub">${completed.length} completed orders</div>
+        </div>
+        <div class="kpi-card kpi-blue">
+          <div class="kpi-icon"><i class="fa fa-shopping-bag"></i></div>
+          <div class="kpi-lbl">Total Orders</div>
+          <div class="kpi-val">${filteredOrders.length}</div>
+          <div class="kpi-sub">${abandoned} abandoned</div>
+        </div>
+        <div class="kpi-card kpi-orange">
+          <div class="kpi-icon"><i class="fa fa-percent"></i></div>
+          <div class="kpi-lbl">Conversion Rate</div>
+          <div class="kpi-val">${convRate}%</div>
+          <div class="kpi-sub">Completed / total</div>
+        </div>
+        <div class="kpi-card kpi-purple">
+          <div class="kpi-icon"><i class="fa fa-box"></i></div>
+          <div class="kpi-lbl">Products</div>
+          <div class="kpi-val">${products.length}</div>
+          <div class="kpi-sub"><a href="/admin/products" data-nav style="color:var(--accent);text-decoration:none;">Manage →</a></div>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-title">Revenue Trend</div>
+          <div class="chart-wrap"><canvas id="revenueChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Orders by Country</div>
+          <div class="chart-wrap"><canvas id="countryChart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <div class="table-header"><span class="table-title">Recent Orders</span></div>
+        <table class="admin-table">
+          <thead><tr><th>Date</th><th>Customer</th><th>Product</th><th>Total</th><th>Status</th></tr></thead>
+          <tbody>
+            ${filteredOrders.slice(0, 8).map(o => `
+              <tr>
+                <td style="color:var(--muted);font-size:12px;">${fmtDate(o.date || o.savedAt)}</td>
+                <td><strong>${o.nom}</strong><br><small style="color:var(--muted);">${o.telephone || ''}</small></td>
+                <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${o.produit}</td>
+                <td>${fmtPrice(o.total || 0)} CFA</td>
+                <td>${statusBadge(o.status)}</td>
+              </tr>`).join('')}
+            ${filteredOrders.length === 0 ? `<tr><td colspan="5"><div class="empty-state"><i class="fa fa-inbox"></i><p>No orders yet.</p></div></td></tr>` : ''}
+          </tbody>
+        </table>
+      </div>`;
+
+    document.getElementById('dash-content').querySelector('[data-nav]')?.addEventListener('click', e => { e.preventDefault(); navigate('/admin/products'); });
+
+    if (revChart) revChart.destroy();
+    if (countChart) countChart.destroy();
+
+    if (window.Chart) {
+      revChart = new Chart(document.getElementById('revenueChart'), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{ label: 'Revenue (CFA)', data: revData, borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,0.1)', fill: true, tension: 0.4, pointRadius: 3 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
+      });
+
+      if (countryLabels.length > 0) {
+        const colors = ['#6366f1','#8b5cf6','#3b82f6','#10b981','#f59e0b','#ef4444','#14b8a6'];
+        countChart = new Chart(document.getElementById('countryChart'), {
+          type: 'doughnut',
+          data: { labels: countryLabels, datasets: [{ data: countryData, backgroundColor: colors, borderWidth: 0 }] },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 11 }, padding: 12 } } } }
+        });
+      }
+    }
+  };
+
+  document.getElementById('dashStartDateFilter').onchange = updateDashboard;
+  document.getElementById('dashEndDateFilter').onchange = updateDashboard;
+
+  updateDashboard();
 }
 
 // ── Products ─────────────────────────────────────────────

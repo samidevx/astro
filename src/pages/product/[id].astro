@@ -378,81 +378,151 @@ const cleanDesc = (p.description || "")
                             }
                         </div>
 
-                                 {
+                        {
                             p.offres && p.offres.length > 0 && (
-                                <div class="offers-selector-wrap" style="margin-bottom: 24px;">
-                                    <label class="form-label" style="font-weight: 800; color: #1e293b; margin-bottom: 14px; display: block; text-transform: uppercase; letter-spacing: 0.05em; font-size: 13.5px; font-family: var(--fh);">🎁 SÉLECTIONNEZ VOTRE OFFRE</label>
-                                    <div class="offers-list" style="display: flex; flex-direction: column; gap: 12px;">
-                                        {p.offres.map((off: any, idx: number) => {
-                                            const pct = off.oldPrice ? Math.round(((off.oldPrice - off.price) / off.oldPrice) * 100) : 0;
-                                            return (
-                                                <label class={`offer-option-card ${idx === 0 ? 'active' : ''}`} style={`display: flex; align-items: center; justify-content: space-between; border: 2px solid ${idx === 0 ? '#2563eb' : '#e2e8f0'}; border-radius: 12px; padding: 14px 16px; cursor: pointer; transition: all 0.2s; background: ${idx === 0 ? '#f0f7ff' : '#fff'}; position: relative;`}>
-                                                    <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
-                                                        <input type="radio" name="selected_offer" value={idx} checked={idx === 0} class="offer-radio" style="width: 18px; height: 18px; cursor: pointer; accent-color: #2563eb;" />
-                                                        <div style="display: flex; flex-direction: column; gap: 4px;">
-                                                            <span class="offer-option-title" style="font-weight: 700; color: #1e293b; font-size: 14.5px;">{off.title}</span>
-                                                            <span class="offer-option-qty" style="display: inline-flex; align-items: center; gap: 4px; background: #e2e8f0; color: #475569; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; width: max-content;">📦 x{off.qty}</span>
-                                                        </div>
-                                                    </div>
-                                                    <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 2px;">
-                                                        <span class="offer-option-price" style="font-size: 17.5px; font-weight: 800; color: #2563eb;">{fmtPrice(off.price)} {p.currency}</span>
-                                                        {off.oldPrice && (
-                                                            <div style="display: flex; align-items: center; gap: 6px;">
-                                                                <span class="offer-option-oldprice" style="font-size: 13px; text-decoration: line-through; color: #94a3b8;">{fmtPrice(off.oldPrice)} {p.currency}</span>
-                                                                <span class="offer-option-badge" style="background: #dcfce7; color: #15803d; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 6px;">-{pct}%</span>
+                                <div
+                                    class="offers-selector-wrap"
+                                    style="margin-bottom: 24px;"
+                                >
+                                    <label
+                                        class="form-label"
+                                        style="font-weight: 800; color: #1e293b; margin-bottom: 14px; display: block; text-transform: uppercase; letter-spacing: 0.05em; font-size: 13.5px; font-family: var(--fh);"
+                                    >
+                                        🎁 SÉLECTIONNEZ VOTRE OFFRE
+                                    </label>
+                                    <div
+                                        class="offers-list"
+                                        style="display: flex; flex-direction: column; gap: 12px;"
+                                    >
+                                        {p.offres.map(
+                                            (off: any, idx: number) => {
+                                                const pct = off.oldPrice
+                                                    ? Math.round(
+                                                          ((off.oldPrice -
+                                                              off.price) /
+                                                              off.oldPrice) *
+                                                              100,
+                                                      )
+                                                    : 0;
+                                                return (
+                                                    <label
+                                                        class={`offer-option-card ${idx === 0 ? "active" : ""}`}
+                                                        style={`display: flex; align-items: center; justify-content: space-between; border: 2px solid ${idx === 0 ? "#2563eb" : "#e2e8f0"}; border-radius: 12px; padding: 14px 16px; cursor: pointer; transition: all 0.2s; background: ${idx === 0 ? "#f0f7ff" : "#fff"}; position: relative;`}
+                                                    >
+                                                        <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                                                            <input
+                                                                type="radio"
+                                                                name="selected_offer"
+                                                                value={idx}
+                                                                checked={
+                                                                    idx === 0
+                                                                }
+                                                                class="offer-radio"
+                                                                style="width: 18px; height: 18px; cursor: pointer; accent-color: #2563eb;"
+                                                            />
+                                                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                                                <span
+                                                                    class="offer-option-title"
+                                                                    style="font-weight: 700; color: #1e293b; font-size: 14.5px;"
+                                                                >
+                                                                    {off.title}
+                                                                </span>
+                                                                <span
+                                                                    class="offer-option-qty"
+                                                                    style="display: inline-flex; align-items: center; gap: 4px; background: #e2e8f0; color: #475569; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; width: max-content;"
+                                                                >
+                                                                    📦 x
+                                                                    {off.qty}
+                                                                </span>
                                                             </div>
-                                                        )}
-                                                    </div>
-                                                </label>
-                                            );
-                                        })}
+                                                        </div>
+                                                        <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 2px;">
+                                                            <span
+                                                                class="offer-option-price"
+                                                                style="font-size: 17.5px; font-weight: 800; color: #2563eb;"
+                                                            >
+                                                                {fmtPrice(
+                                                                    off.price,
+                                                                )}{" "}
+                                                                {p.currency}
+                                                            </span>
+                                                            {off.oldPrice && (
+                                                                <div style="display: flex; align-items: center; gap: 6px;">
+                                                                    <span
+                                                                        class="offer-option-oldprice"
+                                                                        style="font-size: 13px; text-decoration: line-through; color: #94a3b8;"
+                                                                    >
+                                                                        {fmtPrice(
+                                                                            off.oldPrice,
+                                                                        )}{" "}
+                                                                        {
+                                                                            p.currency
+                                                                        }
+                                                                    </span>
+                                                                    <span
+                                                                        class="offer-option-badge"
+                                                                        style="background: #dcfce7; color: #15803d; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 6px;"
+                                                                    >
+                                                                        -{pct}%
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </label>
+                                                );
+                                            },
+                                        )}
                                     </div>
                                 </div>
                             )
                         }
 
                         {
-                            p.showQuantity === "yes" && p.bundle !== "yes" && (!p.offres || p.offres.length === 0) && (
-                                <div class="qty-action-wrap">
-                                    <label
-                                        class="qty-action-lbl"
-                                        for="manual-qty"
-                                    >
-                                        Quantité
-                                    </label>
-                                    <div class="qty-box">
-                                        <button
-                                            type="button"
-                                            class="qty-btn"
-                                            id="btn-qty-minus"
-                                            aria-label="Diminuer la quantité"
+                            p.showQuantity === "yes" &&
+                                p.bundle !== "yes" &&
+                                (!p.offres || p.offres.length === 0) && (
+                                    <div class="qty-action-wrap">
+                                        <label
+                                            class="qty-action-lbl"
+                                            for="manual-qty"
                                         >
-                                            -
-                                        </button>
-                                        <input
-                                            type="number"
-                                            class="qty-val"
-                                            id="manual-qty"
-                                            value="1"
-                                            readonly
-                                        />
-                                        <button
-                                            type="button"
-                                            class="qty-btn"
-                                            id="btn-qty-plus"
-                                            aria-label="Augmenter la quantité"
-                                        >
-                                            +
-                                        </button>
+                                            Quantité
+                                        </label>
+                                        <div class="qty-box">
+                                            <button
+                                                type="button"
+                                                class="qty-btn"
+                                                id="btn-qty-minus"
+                                                aria-label="Diminuer la quantité"
+                                            >
+                                                -
+                                            </button>
+                                            <input
+                                                type="number"
+                                                class="qty-val"
+                                                id="manual-qty"
+                                                value="1"
+                                                readonly
+                                            />
+                                            <button
+                                                type="button"
+                                                class="qty-btn"
+                                                id="btn-qty-plus"
+                                                aria-label="Augmenter la quantité"
+                                            >
+                                                +
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
-                            )
+                                )
                         }
 
                         <div class="order-summary">
                             <div class="sum-row">
                                 <span>Prix du produit</span>
-                                <span id="sum-price">{fmtPrice(p.price)} {p.currency}</span>
+                                <span id="sum-price"
+                                    >{fmtPrice(p.price)} {p.currency}</span
+                                >
                             </div>
                             <div class="sum-row">
                                 <span>Quantité</span>
@@ -572,7 +642,10 @@ const cleanDesc = (p.description || "")
 
             const sumPriceEl = document.getElementById("sum-price");
             if (sumPriceEl) {
-                sumPriceEl.innerText = fmtPrice(selectedOffer ? selectedOffer.price : price) + " " + p.currency;
+                sumPriceEl.innerText =
+                    fmtPrice(selectedOffer ? selectedOffer.price : price) +
+                    " " +
+                    p.currency;
             }
 
             // Update main product card price displays
@@ -580,13 +653,15 @@ const cleanDesc = (p.description || "")
             const mainPriceOldEl = document.getElementById("d-price-old");
             const mainPriceSaveEl = document.getElementById("d-price-save");
             if (mainPriceEl) {
-                mainPriceEl.innerText = fmtPrice(displayPrice) + " " + p.currency;
+                mainPriceEl.innerText =
+                    fmtPrice(displayPrice) + " " + p.currency;
             }
             if (selectedOffer) {
                 if (mainPriceOldEl) {
                     if (selectedOffer.oldPrice) {
                         mainPriceOldEl.style.display = "inline";
-                        mainPriceOldEl.innerText = fmtPrice(selectedOffer.oldPrice) + " " + p.currency;
+                        mainPriceOldEl.innerText =
+                            fmtPrice(selectedOffer.oldPrice) + " " + p.currency;
                     } else {
                         mainPriceOldEl.style.display = "none";
                     }
@@ -594,7 +669,21 @@ const cleanDesc = (p.description || "")
                 if (mainPriceSaveEl) {
                     if (selectedOffer.oldPrice) {
                         mainPriceSaveEl.style.display = "inline";
-                        mainPriceSaveEl.innerText = "Économisez " + fmtPrice(selectedOffer.oldPrice - selectedOffer.price) + " " + p.currency + " (-" + Math.round((selectedOffer.oldPrice - selectedOffer.price) / selectedOffer.oldPrice * 100) + "%)";
+                        mainPriceSaveEl.innerText =
+                            "Économisez " +
+                            fmtPrice(
+                                selectedOffer.oldPrice - selectedOffer.price,
+                            ) +
+                            " " +
+                            p.currency +
+                            " (-" +
+                            Math.round(
+                                ((selectedOffer.oldPrice -
+                                    selectedOffer.price) /
+                                    selectedOffer.oldPrice) *
+                                    100,
+                            ) +
+                            "%)";
                     } else {
                         mainPriceSaveEl.style.display = "none";
                     }
@@ -615,18 +704,20 @@ const cleanDesc = (p.description || "")
                 price = selectedOffer.price;
 
                 // Update active option card styles
-                document.querySelectorAll(".offer-option-card").forEach((card, cIdx) => {
-                    const r = card.querySelector(".offer-radio");
-                    if (cIdx === idx) {
-                        if (r) r.checked = true;
-                        card.style.borderColor = "#2563eb";
-                        card.style.background = "#f0f7ff";
-                    } else {
-                        if (r) r.checked = false;
-                        card.style.borderColor = "#e2e8f0";
-                        card.style.background = "#fff";
-                    }
-                });
+                document
+                    .querySelectorAll(".offer-option-card")
+                    .forEach((card, cIdx) => {
+                        const r = card.querySelector(".offer-radio");
+                        if (cIdx === idx) {
+                            if (r) r.checked = true;
+                            card.style.borderColor = "#2563eb";
+                            card.style.background = "#f0f7ff";
+                        } else {
+                            if (r) r.checked = false;
+                            card.style.borderColor = "#e2e8f0";
+                            card.style.background = "#fff";
+                        }
+                    });
 
                 updateTotal();
             });
@@ -677,7 +768,7 @@ const cleanDesc = (p.description || "")
         const GOOGLE_SHEETS_WEBAPP_URL =
             "https://script.google.com/macros/s/AKfycbys57Cg6UpfnbGIwYmxBWXKaww_jvfZWtzYAjAvbXHP2qonMvwz_1tWAXKAEhGfJafy7g/exec";
         const cartSessionId =
-            "ORD-" +
+            "ASTRO-" +
             Date.now().toString().slice(-6) +
             "-" +
             Math.floor(Math.random() * 10000);
@@ -760,7 +851,7 @@ const cleanDesc = (p.description || "")
                 if (vTaille) formData.append("taille", vTaille.value);
 
                 const utms = getUTMParams();
-                                 try {
+                try {
                     // 1) Write to Google Sheets (fire-and-forget with keepalive to outlive navigation)
                     fetch(GOOGLE_SHEETS_WEBAPP_URL, {
                         method: "POST",
