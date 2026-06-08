@@ -9,4 +9,4 @@ directory = "./dist/client"
 # Then replace PLACEHOLDER_KV_ID with your KV namespace ID below
 [[kv_namespaces]]
 binding = "STORE_KV"
-id = "PLACEHOLDER_KV_ID"
+id = "db49375252c848dfb4b0b9525981323e"

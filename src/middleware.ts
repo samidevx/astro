@@ -1,46 +1,36 @@
 import type { MiddlewareHandler } from 'astro';
 
-const PROTECTED_PATHS = ['/admin', '/admin/'];
-
 export const onRequest: MiddlewareHandler = async (context, next) => {
   const { pathname } = context.url;
-  const { request, locals } = context;
 
-  // Only protect /admin/* routes (not /api/auth/login)
-  const isAdminRoute = pathname.startsWith('/admin');
-  const isAuthApi = pathname.startsWith('/api/auth');
+  // Pass through: non-admin routes, API auth routes, and the login page itself
+  if (!pathname.startsWith('/admin')) return next();
+  if (pathname.startsWith('/api/')) return next();
+  if (pathname === '/admin/login' || pathname === '/admin/login/') return next();
 
-  if (!isAdminRoute || isAuthApi) {
-    return next();
+  // Protected admin routes — validate session
+  const kv = (context.locals.runtime?.env as any)?.STORE_KV;
+
+  // Parse cookies
+  const cookieHeader = context.request.headers.get('cookie') || '';
+  let sessionToken = '';
+  for (const part of cookieHeader.split(';')) {
+    const [k, ...v] = part.trim().split('=');
+    if (k === 'admin_token') { sessionToken = v.join('='); break; }
   }
 
-  // Login page itself doesn't need protection
-  if (pathname === '/admin/login') {
-    return next();
-  }
-
-  const kv = (locals.runtime?.env as any)?.STORE_KV;
-
-  // Read session cookie
-  const cookieHeader = request.headers.get('cookie') || '';
-  const cookies = Object.fromEntries(
-    cookieHeader.split(';').map(c => {
-      const [k, ...v] = c.trim().split('=');
-      return [k, v.join('=')];
-    })
-  );
-  const sessionToken = cookies['admin_token'];
-
-  if (!sessionToken || !kv) {
-    // No token → redirect to login
+  if (!sessionToken) {
     return context.redirect('/admin/login');
   }
 
-  // Validate token against KV
+  // If KV is unavailable, redirect to login for safety
+  if (!kv) {
+    return context.redirect('/admin/login');
+  }
+
   try {
-    const sessionData = await kv.get(`session:${sessionToken}`, 'json') as { expires_at: number } | null;
-    if (!sessionData || Date.now() > sessionData.expires_at) {
-      // Expired or invalid
+    const session = await kv.get(`session:${sessionToken}`, 'json') as { expires_at: number } | null;
+    if (!session || Date.now() > session.expires_at) {
       return context.redirect('/admin/login');
     }
   } catch {
