@@ -1,20 +1,17 @@
 ---
+import { env } from 'cloudflare:workers';
 // If already authenticated, redirect to dashboard
 const cookieHeader = Astro.request.headers.get('cookie') || '';
-const cookies = Object.fromEntries(
-  cookieHeader.split(';').map(c => {
-    const [k, ...v] = c.trim().split('=');
-    return [k, v.join('=')];
-  })
-);
-const sessionToken = cookies['admin_token'];
+let sessionToken = '';
+for (const part of cookieHeader.split(';')) {
+  const [k, ...v] = part.trim().split('=');
+  if (k === 'admin_token') { sessionToken = v.join('='); break; }
+}
 if (sessionToken) {
-  const kv = (Astro.locals.runtime?.env as any)?.STORE_KV;
+  const kv = (env as any)?.STORE_KV;
   if (kv) {
     const session = await kv.get(`session:${sessionToken}`, 'json') as { expires_at: number } | null;
-    if (session && Date.now() < session.expires_at) {
-      return Astro.redirect('/admin');
-    }
+    if (session && Date.now() < session.expires_at) return Astro.redirect('/admin');
   }
 }
 ---

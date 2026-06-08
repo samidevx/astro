@@ -1,16 +1,15 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import defaultProducts from '../../data/products.json';
+import { env } from 'cloudflare:workers';
 
 // SSR: fetch product from KV at request time
 const { id } = Astro.params;
 
 let allProducts: any[] = [];
 try {
-  const kv = (Astro.locals.runtime?.env as any)?.STORE_KV;
-  if (kv) {
-    allProducts = await kv.get('products:all', 'json') || [];
-  }
+  const kv = (env as any)?.STORE_KV;
+  if (kv) allProducts = await kv.get('products:all', 'json') || [];
 } catch {}
 
 if (!allProducts || allProducts.length === 0) {

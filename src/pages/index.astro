@@ -2,19 +2,14 @@
 export const prerender = false;
 import Layout from '../layouts/Layout.astro';
 import staticProducts from '../data/products.json';
+import { env } from 'cloudflare:workers';
 
-// Fetch products from KV at request time so homepage reflects admin changes
 let productsData: any[] = [];
 try {
-  const kv = (Astro.locals.runtime?.env as any)?.STORE_KV;
-  if (kv) {
-    productsData = await kv.get('products:all', 'json') || [];
-  }
+  const kv = (env as any)?.STORE_KV;
+  if (kv) productsData = await kv.get('products:all', 'json') || [];
 } catch {}
-// Fallback to static JSON if KV not available
-if (!productsData || productsData.length === 0) {
-  productsData = staticProducts as any[];
-}
+if (!productsData || productsData.length === 0) productsData = staticProducts as any[];
 ---
 
 <Layout title="Lina Nightwear - Boutique E-commerce & Mode">

@@ -8,6 +8,16 @@ export default defineConfig({
   adapter: cloudflare({
     platformProxy: {
       enabled: true
+    },
+    routes: {
+      extend: {
+        include: [
+          { pattern: '/admin' },
+          { pattern: '/admin/*' },
+          { pattern: '/api/*' },
+          { pattern: '/product/*' },
+        ]
+      }
     }
   })
 });

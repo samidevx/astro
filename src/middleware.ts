@@ -1,4 +1,5 @@
 import type { MiddlewareHandler } from 'astro';
+import { env as cfEnv } from 'cloudflare:workers';
 
 export const onRequest: MiddlewareHandler = async (context, next) => {
   const { pathname } = context.url;
@@ -9,7 +10,7 @@ export const onRequest: MiddlewareHandler = async (context, next) => {
   if (pathname === '/admin/login' || pathname === '/admin/login/') return next();
 
   // Protected admin routes — validate session
-  const kv = (context.locals.runtime?.env as any)?.STORE_KV;
+  const kv = (cfEnv as any)?.STORE_KV;
 
   // Parse cookies
   const cookieHeader = context.request.headers.get('cookie') || '';
