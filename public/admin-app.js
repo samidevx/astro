@@ -36,7 +36,7 @@ function renderShell(root, path) {
         <div class="admin-logo">
           <div class="admin-logo-icon">🛒</div>
           <div>
-            <div class="admin-logo-text">Lina Store</div>
+            <div class="admin-logo-text">Astro Shop</div>
             <div class="admin-logo-sub">Admin Panel</div>
           </div>
         </div>

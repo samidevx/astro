@@ -1,4 +1,5 @@
 name = "astro"
+account_id = "fb6f0b1d5781a11c11438587082cd67b"
 compatibility_date = "2024-09-23"
 compatibility_flags = [ "nodejs_compat" ]
 
@@ -6,8 +7,10 @@ compatibility_flags = [ "nodejs_compat" ]
 [assets]
 directory = "./dist/client"
 
-# Run: npx wrangler kv namespace create STORE_KV
-# Then replace PLACEHOLDER_KV_ID with your KV namespace ID below
 [[kv_namespaces]]
 binding = "STORE_KV"
-id = "db49375252c848dfb4b0b9525981323e"
+id = "ccbe577271c442c896598eace43681a1"
+
+[[kv_namespaces]]
+binding = "SESSION"
+id = "6efe66970eb641ed973f8f2a3d094d6f"
