@@ -7,8 +7,4 @@ directory = "./dist/client"
 
 [[kv_namespaces]]
 binding = "STORE_KV"
-id = "ccbe577271c442c896598eace43681a1"
-
-[[kv_namespaces]]
-binding = "SESSION"
-id = "6efe66970eb641ed973f8f2a3d094d6f"
+id = "db49375252c848dfb4b0b9525981323e"
