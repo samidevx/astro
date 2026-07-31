@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "build": "node -e \"const fs=require('fs');fs.mkdirSync('./dist/server',{recursive:true});fs.writeFileSync('./dist/server/entry.mjs','// placeholder');\" && astro build",
+    "build": "astro build",
     "preview": "astro preview",
     "deploy": "wrangler deploy dist/server/entry.mjs",
     "astro": "astro"

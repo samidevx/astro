@@ -3,7 +3,6 @@ account_id = "fb6f0b1d5781a11c11438587082cd67b"
 compatibility_date = "2024-09-23"
 compatibility_flags = [ "nodejs_compat" ]
 
-
 [assets]
 directory = "./dist/client"
 
