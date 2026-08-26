@@ -7,117 +7,203 @@ interface Props {
 }
 
 const {
-  siteName = "LP Shop Africa",
+  siteName = "Astro Shop",
   whatsappNumber = "+2250700000000",
   instagramUrl = "#",
-  facebookUrl = "#"
+  facebookUrl = "#",
 } = Astro.props;
 ---
 
 <footer class="site-footer-new">
-    <div class="footer-container">
-        <!-- Top Shopping Bag Icon Badge -->
-        <div class="footer-brand-icon">
-            <i class="fa-solid fa-bag-shopping"></i>
-        </div>
-
-        <!-- Store Name -->
-        <h2 class="footer-brand-title">{siteName}</h2>
-
-        <!-- Description -->
-        <p class="footer-brand-desc">
-            Boutique moderne avec une touche d'élégance, offrant des produits sélectionnés avec soin pour votre style, de qualité supérieure et à prix abordables.
-        </p>
-
-        <!-- Social Icons -->
-        <div class="footer-socials">
-            <a href={`https://wa.me/${whatsappNumber.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" class="social-circle-btn" aria-label="WhatsApp">
-                <i class="fa-brands fa-whatsapp"></i>
-            </a>
-            <a href={instagramUrl} target="_blank" rel="noopener noreferrer" class="social-circle-btn" aria-label="Instagram">
-                <i class="fa-brands fa-instagram"></i>
-            </a>
-            <a href={facebookUrl} target="_blank" rel="noopener noreferrer" class="social-circle-btn" aria-label="Facebook">
-                <i class="fa-brands fa-facebook-f"></i>
-            </a>
-        </div>
-
-        <!-- Privacy & Terms Links -->
-        <div class="footer-privacy-links">
-            <button type="button" class="privacy-link-btn" data-policy="privacy">Politique de confidentialité</button>
-            <span class="privacy-dot">•</span>
-            <button type="button" class="privacy-link-btn" data-policy="terms">Conditions d'utilisation</button>
-            <span class="privacy-dot">•</span>
-            <button type="button" class="privacy-link-btn" data-policy="returns">Politique de retour et d'échange</button>
-        </div>
-
-        <div class="footer-divider"></div>
-
-        <!-- Copyright -->
-        <p class="footer-copyright">
-            © 2026 {siteName}. Tous droits réservés.
-        </p>
+  <div class="footer-container">
+    <!-- Top Shopping Bag Icon Badge -->
+    <div class="footer-brand-icon">
+      <i class="fa-solid fa-bag-shopping"></i>
     </div>
 
-    <!-- PRIVACY / TERMS MODAL POPUP -->
-    <div id="privacyModal" class="privacy-modal-overlay" aria-hidden="true">
-        <div class="privacy-modal-card">
-            <button type="button" class="privacy-modal-close" id="closePrivacyModal" aria-label="Fermer">&times;</button>
-            
-            <div class="privacy-modal-tabs">
-                <button type="button" class="policy-tab active" data-target="privacy">Confidentialité</button>
-                <button type="button" class="policy-tab" data-target="terms">Conditions</button>
-                <button type="button" class="policy-tab" data-target="returns">Retours & Échanges</button>
-            </div>
+    <!-- Store Name -->
+    <h2 class="footer-brand-title">{siteName}</h2>
 
-            <div class="privacy-modal-body">
-                <!-- PRIVACY CONTENT -->
-                <div class="policy-content active" id="policy-privacy">
-                    <h3><i class="fa-solid fa-user-shield"></i> Politique de Confidentialité</h3>
-                    <p>Nous accordons une importance capitale à la protection de vos données personnelles. Cette politique explique comment nous collectons et traitons vos informations lors de vos achats.</p>
-                    <h4>1. Collecte des informations</h4>
-                    <p>Lorsque vous passez une commande sur notre boutique, nous collectons uniquement les informations nécessaires au traitement et à la livraison de votre colis : votre nom complet, votre numéro de téléphone, votre ville et adresse de livraison.</p>
-                    <h4>2. Utilisation de vos données</h4>
-                    <p>Vos données sont exclusivement utilisées pour :</p>
-                    <ul>
-                        <li>Confirmer votre commande par appel téléphonique ou SMS.</li>
-                        <li>Assurer la livraison rapide à votre domicile ou quartier.</li>
-                        <li>Améliorer votre expérience d'achat et notre service client.</li>
-                    </ul>
-                    <h4>3. Protection & Sécurité</h4>
-                    <p>Vos informations personnelles ne sont jamais vendues, louées ni cédées à des tiers. Elles restent strictement confidentielles et sécurisées.</p>
-                </div>
+    <!-- Description -->
+    <p class="footer-brand-desc">
+      Boutique moderne avec une touche d'élégance, offrant des produits
+      sélectionnés avec soin pour votre style, de qualité supérieure et à prix
+      abordables.
+    </p>
 
-                <!-- TERMS CONTENT -->
-                <div class="policy-content" id="policy-terms">
-                    <h3><i class="fa-solid fa-file-contract"></i> Conditions d'Utilisation</h3>
-                    <p>Bienvenue sur notre boutique en ligne. En effectuant une commande sur notre site, vous acceptez pleinement les présentes conditions d'utilisation.</p>
-                    <h4>1. Commandes & Engagement</h4>
-                    <p>Toute commande validée via notre formulaire constitue un engagement d'achat ferme avec paiement cash à la livraison.</p>
-                    <h4>2. Prix et Disponibilité</h4>
-                    <p>Tous nos prix sont indiqués dans la monnaie locale. Les offres et promotions présentées sur le site sont valables dans la limite des stocks disponibles.</p>
-                    <h4>3. Confirmation de commande</h4>
-                    <p>Notre équipe du service client vous contactera par téléphone pour valider et confirmer les détails de votre livraison avant l'expédition.</p>
-                </div>
-
-                <!-- RETURNS CONTENT -->
-                <div class="policy-content" id="policy-returns">
-                    <h3><i class="fa-solid fa-rotate-left"></i> Politique de Retour et d'Échange</h3>
-                    <p>Votre satisfaction est notre priorité absolue. Nous proposons une politique de retour et d'échange claire et transparente.</p>
-                    <h4>1. Droit de vérification à la livraison</h4>
-                    <p>Vous avez le droit d'inspecter l'état de votre produit au moment de la livraison avant d'effectuer le paiement au livreur.</p>
-                    <h4>2. Délai d'échange (7 Jours)</h4>
-                    <p>Si le produit présente un défaut de fabrication ou ne correspond pas à votre commande, vous disposez d'un délai de 7 jours après réception pour solliciter un échange.</p>
-                    <h4>3. Conditions d'acceptation</h4>
-                    <p>Le produit doit être retourné dans son emballage d'origine, non utilisé et en parfait état.</p>
-                </div>
-            </div>
-
-            <div class="privacy-modal-footer">
-                <button type="button" class="modal-accept-btn" id="acceptPrivacyModal">J'ai compris</button>
-            </div>
-        </div>
+    <!-- Social Icons -->
+    <div class="footer-socials">
+      <a
+        href={`https://wa.me/${whatsappNumber.replace(/[^0-9]/g, "")}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="social-circle-btn"
+        aria-label="WhatsApp"
+      >
+        <i class="fa-brands fa-whatsapp"></i>
+      </a>
+      <a
+        href={instagramUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="social-circle-btn"
+        aria-label="Instagram"
+      >
+        <i class="fa-brands fa-instagram"></i>
+      </a>
+      <a
+        href={facebookUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="social-circle-btn"
+        aria-label="Facebook"
+      >
+        <i class="fa-brands fa-facebook-f"></i>
+      </a>
     </div>
+
+    <!-- Privacy & Terms Links -->
+    <div class="footer-privacy-links">
+      <button type="button" class="privacy-link-btn" data-policy="privacy"
+        >Politique de confidentialité</button
+      >
+      <span class="privacy-dot">•</span>
+      <button type="button" class="privacy-link-btn" data-policy="terms"
+        >Conditions d'utilisation</button
+      >
+      <span class="privacy-dot">•</span>
+      <button type="button" class="privacy-link-btn" data-policy="returns"
+        >Politique de retour et d'échange</button
+      >
+    </div>
+
+    <div class="footer-divider"></div>
+
+    <!-- Copyright -->
+    <p class="footer-copyright">
+      © 2026 {siteName}. Tous droits réservés.
+    </p>
+  </div>
+
+  <!-- PRIVACY / TERMS MODAL POPUP -->
+  <div id="privacyModal" class="privacy-modal-overlay" aria-hidden="true">
+    <div class="privacy-modal-card">
+      <button
+        type="button"
+        class="privacy-modal-close"
+        id="closePrivacyModal"
+        aria-label="Fermer">&times;</button
+      >
+
+      <div class="privacy-modal-tabs">
+        <button type="button" class="policy-tab active" data-target="privacy"
+          >Confidentialité</button
+        >
+        <button type="button" class="policy-tab" data-target="terms"
+          >Conditions</button
+        >
+        <button type="button" class="policy-tab" data-target="returns"
+          >Retours & Échanges</button
+        >
+      </div>
+
+      <div class="privacy-modal-body">
+        <!-- PRIVACY CONTENT -->
+        <div class="policy-content active" id="policy-privacy">
+          <h3>
+            <i class="fa-solid fa-user-shield"></i> Politique de Confidentialité
+          </h3>
+          <p>
+            Nous accordons une importance capitale à la protection de vos
+            données personnelles. Cette politique explique comment nous
+            collectons et traitons vos informations lors de vos achats.
+          </p>
+          <h4>1. Collecte des informations</h4>
+          <p>
+            Lorsque vous passez une commande sur notre boutique, nous collectons
+            uniquement les informations nécessaires au traitement et à la
+            livraison de votre colis : votre nom complet, votre numéro de
+            téléphone, votre ville et adresse de livraison.
+          </p>
+          <h4>2. Utilisation de vos données</h4>
+          <p>Vos données sont exclusivement utilisées pour :</p>
+          <ul>
+            <li>Confirmer votre commande par appel téléphonique ou SMS.</li>
+            <li>Assurer la livraison rapide à votre domicile ou quartier.</li>
+            <li>Améliorer votre expérience d'achat et notre service client.</li>
+          </ul>
+          <h4>3. Protection & Sécurité</h4>
+          <p>
+            Vos informations personnelles ne sont jamais vendues, louées ni
+            cédées à des tiers. Elles restent strictement confidentielles et
+            sécurisées.
+          </p>
+        </div>
+
+        <!-- TERMS CONTENT -->
+        <div class="policy-content" id="policy-terms">
+          <h3>
+            <i class="fa-solid fa-file-contract"></i> Conditions d'Utilisation
+          </h3>
+          <p>
+            Bienvenue sur notre boutique en ligne. En effectuant une commande
+            sur notre site, vous acceptez pleinement les présentes conditions
+            d'utilisation.
+          </p>
+          <h4>1. Commandes & Engagement</h4>
+          <p>
+            Toute commande validée via notre formulaire constitue un engagement
+            d'achat ferme avec paiement cash à la livraison.
+          </p>
+          <h4>2. Prix et Disponibilité</h4>
+          <p>
+            Tous nos prix sont indiqués dans la monnaie locale. Les offres et
+            promotions présentées sur le site sont valables dans la limite des
+            stocks disponibles.
+          </p>
+          <h4>3. Confirmation de commande</h4>
+          <p>
+            Notre équipe du service client vous contactera par téléphone pour
+            valider et confirmer les détails de votre livraison avant
+            l'expédition.
+          </p>
+        </div>
+
+        <!-- RETURNS CONTENT -->
+        <div class="policy-content" id="policy-returns">
+          <h3>
+            <i class="fa-solid fa-rotate-left"></i> Politique de Retour et d'Échange
+          </h3>
+          <p>
+            Votre satisfaction est notre priorité absolue. Nous proposons une
+            politique de retour et d'échange claire et transparente.
+          </p>
+          <h4>1. Droit de vérification à la livraison</h4>
+          <p>
+            Vous avez le droit d'inspecter l'état de votre produit au moment de
+            la livraison avant d'effectuer le paiement au livreur.
+          </p>
+          <h4>2. Délai d'échange (7 Jours)</h4>
+          <p>
+            Si le produit présente un défaut de fabrication ou ne correspond pas
+            à votre commande, vous disposez d'un délai de 7 jours après
+            réception pour solliciter un échange.
+          </p>
+          <h4>3. Conditions d'acceptation</h4>
+          <p>
+            Le produit doit être retourné dans son emballage d'origine, non
+            utilisé et en parfait état.
+          </p>
+        </div>
+      </div>
+
+      <div class="privacy-modal-footer">
+        <button type="button" class="modal-accept-btn" id="acceptPrivacyModal"
+          >J'ai compris</button
+        >
+      </div>
+    </div>
+  </div>
 </footer>
 
 <style>
@@ -127,7 +213,9 @@ const {
     border-top: 1px solid var(--gray-200, #e2e8f0);
     text-align: center;
     margin-top: 60px;
-    transition: background 0.3s ease, border-color 0.3s ease;
+    transition:
+      background 0.3s ease,
+      border-color 0.3s ease;
   }
   :global(body.mode-nuit) .site-footer-new {
     background: var(--gray-900, #0f172a);
@@ -165,7 +253,7 @@ const {
 
   /* Brand Title */
   .footer-brand-title {
-    font-family: var(--fh, 'Plus Jakarta Sans', sans-serif);
+    font-family: var(--fh, "Plus Jakarta Sans", sans-serif);
     font-size: 26px;
     font-weight: 800;
     color: var(--gray-900, #0f172a);
@@ -178,7 +266,7 @@ const {
 
   /* Brand Description */
   .footer-brand-desc {
-    font-family: var(--fb, 'Plus Jakarta Sans', sans-serif);
+    font-family: var(--fb, "Plus Jakarta Sans", sans-serif);
     font-size: 14.5px;
     line-height: 1.65;
     color: #64748b;
@@ -243,12 +331,14 @@ const {
     background: none;
     border: none;
     padding: 4px 8px;
-    font-family: var(--fb, 'Plus Jakarta Sans', sans-serif);
+    font-family: var(--fb, "Plus Jakarta Sans", sans-serif);
     font-size: 14px;
     font-weight: 700;
     color: #475569;
     cursor: pointer;
-    transition: color 0.2s ease, transform 0.2s ease;
+    transition:
+      color 0.2s ease,
+      transform 0.2s ease;
   }
   .privacy-link-btn:hover {
     color: var(--blue, #2563eb);
@@ -418,8 +508,14 @@ const {
     animation: fadeIn 0.25s ease;
   }
   @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(4px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .policy-content h3 {
@@ -498,7 +594,9 @@ const {
     font-size: 13.5px;
     font-weight: 700;
     cursor: pointer;
-    transition: background 0.2s ease, transform 0.2s ease;
+    transition:
+      background 0.2s ease,
+      transform 0.2s ease;
   }
   .modal-accept-btn:hover {
     background: var(--blue-d, #1d4ed8);
@@ -507,64 +605,64 @@ const {
 </style>
 
 <script is:inline>
-  document.addEventListener('DOMContentLoaded', () => {
-    const modal = document.getElementById('privacyModal');
-    const closeBtn = document.getElementById('closePrivacyModal');
-    const acceptBtn = document.getElementById('acceptPrivacyModal');
-    const privacyBtns = document.querySelectorAll('.privacy-link-btn');
-    const policyTabs = document.querySelectorAll('.policy-tab');
-    const policyContents = document.querySelectorAll('.policy-content');
+  document.addEventListener("DOMContentLoaded", () => {
+    const modal = document.getElementById("privacyModal");
+    const closeBtn = document.getElementById("closePrivacyModal");
+    const acceptBtn = document.getElementById("acceptPrivacyModal");
+    const privacyBtns = document.querySelectorAll(".privacy-link-btn");
+    const policyTabs = document.querySelectorAll(".policy-tab");
+    const policyContents = document.querySelectorAll(".policy-content");
 
     function switchPolicy(policyType) {
-      policyTabs.forEach(tab => {
-        if (tab.getAttribute('data-target') === policyType) {
-          tab.classList.add('active');
+      policyTabs.forEach((tab) => {
+        if (tab.getAttribute("data-target") === policyType) {
+          tab.classList.add("active");
         } else {
-          tab.classList.remove('active');
+          tab.classList.remove("active");
         }
       });
-      policyContents.forEach(content => {
+      policyContents.forEach((content) => {
         if (content.id === `policy-${policyType}`) {
-          content.classList.add('active');
+          content.classList.add("active");
         } else {
-          content.classList.remove('active');
+          content.classList.remove("active");
         }
       });
     }
 
-    privacyBtns.forEach(btn => {
-      btn.addEventListener('click', (e) => {
+    privacyBtns.forEach((btn) => {
+      btn.addEventListener("click", (e) => {
         e.preventDefault();
-        const policy = btn.getAttribute('data-policy');
+        const policy = btn.getAttribute("data-policy");
         switchPolicy(policy);
         if (modal) {
-          modal.classList.add('open');
-          modal.setAttribute('aria-hidden', 'false');
-          document.body.style.overflow = 'hidden';
+          modal.classList.add("open");
+          modal.setAttribute("aria-hidden", "false");
+          document.body.style.overflow = "hidden";
         }
       });
     });
 
-    policyTabs.forEach(tab => {
-      tab.addEventListener('click', () => {
-        const policy = tab.getAttribute('data-target');
+    policyTabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const policy = tab.getAttribute("data-target");
         switchPolicy(policy);
       });
     });
 
     function closeModal() {
       if (modal) {
-        modal.classList.remove('open');
-        modal.setAttribute('aria-hidden', 'true');
-        document.body.style.overflow = '';
+        modal.classList.remove("open");
+        modal.setAttribute("aria-hidden", "true");
+        document.body.style.overflow = "";
       }
     }
 
-    if (closeBtn) closeBtn.addEventListener('click', closeModal);
-    if (acceptBtn) acceptBtn.addEventListener('click', closeModal);
+    if (closeBtn) closeBtn.addEventListener("click", closeModal);
+    if (acceptBtn) acceptBtn.addEventListener("click", closeModal);
 
     if (modal) {
-      modal.addEventListener('click', (e) => {
+      modal.addEventListener("click", (e) => {
         if (e.target === modal) closeModal();
       });
     }
