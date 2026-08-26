@@ -1,27 +1,572 @@
 ---
+interface Props {
+  siteName?: string;
+  whatsappNumber?: string;
+  instagramUrl?: string;
+  facebookUrl?: string;
+}
 
+const {
+  siteName = "LP Shop Africa",
+  whatsappNumber = "+2250700000000",
+  instagramUrl = "#",
+  facebookUrl = "#"
+} = Astro.props;
 ---
 
-<footer class="site-footer">
-    <div class="footer-grid">
-        <div>
-            <div class="footer-logo">
-                <div class="footer-logo-icon">🛒</div> Astro Shop
-            </div>
-            <p class="footer-desc">
-                Votre boutique de confiance. Livraison Gratuite, paiement à la
-                réception.
-            </p>
+<footer class="site-footer-new">
+    <div class="footer-container">
+        <!-- Top Shopping Bag Icon Badge -->
+        <div class="footer-brand-icon">
+            <i class="fa-solid fa-bag-shopping"></i>
         </div>
-        <div class="footer-col">
-            <h2>Liens Rapides</h2>
-            <ul style="list-style: none; padding: 0;">
-                <li>
-                    <a href="/" style="color: inherit; text-decoration: none;"
-                        >Accueil</a
-                    >
-                </li>
-            </ul>
+
+        <!-- Store Name -->
+        <h2 class="footer-brand-title">{siteName}</h2>
+
+        <!-- Description -->
+        <p class="footer-brand-desc">
+            Boutique moderne avec une touche d'élégance, offrant des produits sélectionnés avec soin pour votre style, de qualité supérieure et à prix abordables.
+        </p>
+
+        <!-- Social Icons -->
+        <div class="footer-socials">
+            <a href={`https://wa.me/${whatsappNumber.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" class="social-circle-btn" aria-label="WhatsApp">
+                <i class="fa-brands fa-whatsapp"></i>
+            </a>
+            <a href={instagramUrl} target="_blank" rel="noopener noreferrer" class="social-circle-btn" aria-label="Instagram">
+                <i class="fa-brands fa-instagram"></i>
+            </a>
+            <a href={facebookUrl} target="_blank" rel="noopener noreferrer" class="social-circle-btn" aria-label="Facebook">
+                <i class="fa-brands fa-facebook-f"></i>
+            </a>
+        </div>
+
+        <!-- Privacy & Terms Links -->
+        <div class="footer-privacy-links">
+            <button type="button" class="privacy-link-btn" data-policy="privacy">Politique de confidentialité</button>
+            <span class="privacy-dot">•</span>
+            <button type="button" class="privacy-link-btn" data-policy="terms">Conditions d'utilisation</button>
+            <span class="privacy-dot">•</span>
+            <button type="button" class="privacy-link-btn" data-policy="returns">Politique de retour et d'échange</button>
+        </div>
+
+        <div class="footer-divider"></div>
+
+        <!-- Copyright -->
+        <p class="footer-copyright">
+            © 2026 {siteName}. Tous droits réservés.
+        </p>
+    </div>
+
+    <!-- PRIVACY / TERMS MODAL POPUP -->
+    <div id="privacyModal" class="privacy-modal-overlay" aria-hidden="true">
+        <div class="privacy-modal-card">
+            <button type="button" class="privacy-modal-close" id="closePrivacyModal" aria-label="Fermer">&times;</button>
+            
+            <div class="privacy-modal-tabs">
+                <button type="button" class="policy-tab active" data-target="privacy">Confidentialité</button>
+                <button type="button" class="policy-tab" data-target="terms">Conditions</button>
+                <button type="button" class="policy-tab" data-target="returns">Retours & Échanges</button>
+            </div>
+
+            <div class="privacy-modal-body">
+                <!-- PRIVACY CONTENT -->
+                <div class="policy-content active" id="policy-privacy">
+                    <h3><i class="fa-solid fa-user-shield"></i> Politique de Confidentialité</h3>
+                    <p>Nous accordons une importance capitale à la protection de vos données personnelles. Cette politique explique comment nous collectons et traitons vos informations lors de vos achats.</p>
+                    <h4>1. Collecte des informations</h4>
+                    <p>Lorsque vous passez une commande sur notre boutique, nous collectons uniquement les informations nécessaires au traitement et à la livraison de votre colis : votre nom complet, votre numéro de téléphone, votre ville et adresse de livraison.</p>
+                    <h4>2. Utilisation de vos données</h4>
+                    <p>Vos données sont exclusivement utilisées pour :</p>
+                    <ul>
+                        <li>Confirmer votre commande par appel téléphonique ou SMS.</li>
+                        <li>Assurer la livraison rapide à votre domicile ou quartier.</li>
+                        <li>Améliorer votre expérience d'achat et notre service client.</li>
+                    </ul>
+                    <h4>3. Protection & Sécurité</h4>
+                    <p>Vos informations personnelles ne sont jamais vendues, louées ni cédées à des tiers. Elles restent strictement confidentielles et sécurisées.</p>
+                </div>
+
+                <!-- TERMS CONTENT -->
+                <div class="policy-content" id="policy-terms">
+                    <h3><i class="fa-solid fa-file-contract"></i> Conditions d'Utilisation</h3>
+                    <p>Bienvenue sur notre boutique en ligne. En effectuant une commande sur notre site, vous acceptez pleinement les présentes conditions d'utilisation.</p>
+                    <h4>1. Commandes & Engagement</h4>
+                    <p>Toute commande validée via notre formulaire constitue un engagement d'achat ferme avec paiement cash à la livraison.</p>
+                    <h4>2. Prix et Disponibilité</h4>
+                    <p>Tous nos prix sont indiqués dans la monnaie locale. Les offres et promotions présentées sur le site sont valables dans la limite des stocks disponibles.</p>
+                    <h4>3. Confirmation de commande</h4>
+                    <p>Notre équipe du service client vous contactera par téléphone pour valider et confirmer les détails de votre livraison avant l'expédition.</p>
+                </div>
+
+                <!-- RETURNS CONTENT -->
+                <div class="policy-content" id="policy-returns">
+                    <h3><i class="fa-solid fa-rotate-left"></i> Politique de Retour et d'Échange</h3>
+                    <p>Votre satisfaction est notre priorité absolue. Nous proposons une politique de retour et d'échange claire et transparente.</p>
+                    <h4>1. Droit de vérification à la livraison</h4>
+                    <p>Vous avez le droit d'inspecter l'état de votre produit au moment de la livraison avant d'effectuer le paiement au livreur.</p>
+                    <h4>2. Délai d'échange (7 Jours)</h4>
+                    <p>Si le produit présente un défaut de fabrication ou ne correspond pas à votre commande, vous disposez d'un délai de 7 jours après réception pour solliciter un échange.</p>
+                    <h4>3. Conditions d'acceptation</h4>
+                    <p>Le produit doit être retourné dans son emballage d'origine, non utilisé et en parfait état.</p>
+                </div>
+            </div>
+
+            <div class="privacy-modal-footer">
+                <button type="button" class="modal-accept-btn" id="acceptPrivacyModal">J'ai compris</button>
+            </div>
         </div>
     </div>
 </footer>
+
+<style>
+  .site-footer-new {
+    background: var(--white, #ffffff);
+    padding: 56px 20px 32px;
+    border-top: 1px solid var(--gray-200, #e2e8f0);
+    text-align: center;
+    margin-top: 60px;
+    transition: background 0.3s ease, border-color 0.3s ease;
+  }
+  :global(body.mode-nuit) .site-footer-new {
+    background: var(--gray-900, #0f172a);
+    border-top-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .footer-container {
+    max-width: 680px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* Top Bag Badge */
+  .footer-brand-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: #f0f7ff;
+    border: 1px solid #dbeafe;
+    color: var(--blue, #2563eb);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
+  }
+  :global(body.mode-nuit) .footer-brand-icon {
+    background: rgba(37, 99, 235, 0.15);
+    border-color: rgba(37, 99, 235, 0.3);
+    color: #60a5fa;
+  }
+
+  /* Brand Title */
+  .footer-brand-title {
+    font-family: var(--fh, 'Plus Jakarta Sans', sans-serif);
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--gray-900, #0f172a);
+    margin: 0 0 12px 0;
+    letter-spacing: -0.5px;
+  }
+  :global(body.mode-nuit) .footer-brand-title {
+    color: #ffffff;
+  }
+
+  /* Brand Description */
+  .footer-brand-desc {
+    font-family: var(--fb, 'Plus Jakarta Sans', sans-serif);
+    font-size: 14.5px;
+    line-height: 1.65;
+    color: #64748b;
+    max-width: 540px;
+    margin: 0 0 24px 0;
+    font-weight: 500;
+  }
+  :global(body.mode-nuit) .footer-brand-desc {
+    color: #94a3b8;
+  }
+
+  /* Social Icons */
+  .footer-socials {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  .social-circle-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1.5px solid #e2e8f0;
+    background: var(--white, #ffffff);
+    color: #475569;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    text-decoration: none;
+    transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+  }
+  .social-circle-btn:hover {
+    border-color: var(--blue, #2563eb);
+    background: var(--blue, #2563eb);
+    color: #ffffff;
+    transform: translateY(-3px);
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.25);
+  }
+  :global(body.mode-nuit) .social-circle-btn {
+    background: #1e293b;
+    border-color: #334155;
+    color: #cbd5e1;
+  }
+  :global(body.mode-nuit) .social-circle-btn:hover {
+    background: var(--blue, #2563eb);
+    border-color: var(--blue, #2563eb);
+    color: #ffffff;
+  }
+
+  /* Privacy Links Row */
+  .footer-privacy-links {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .privacy-link-btn {
+    background: none;
+    border: none;
+    padding: 4px 8px;
+    font-family: var(--fb, 'Plus Jakarta Sans', sans-serif);
+    font-size: 14px;
+    font-weight: 700;
+    color: #475569;
+    cursor: pointer;
+    transition: color 0.2s ease, transform 0.2s ease;
+  }
+  .privacy-link-btn:hover {
+    color: var(--blue, #2563eb);
+    transform: translateY(-1px);
+  }
+  :global(body.mode-nuit) .privacy-link-btn {
+    color: #cbd5e1;
+  }
+  :global(body.mode-nuit) .privacy-link-btn:hover {
+    color: #60a5fa;
+  }
+  .privacy-dot {
+    color: #cbd5e1;
+    font-size: 12px;
+  }
+  :global(body.mode-nuit) .privacy-dot {
+    color: #475569;
+  }
+
+  .footer-divider {
+    width: 100%;
+    max-width: 600px;
+    border-top: 1px solid #e2e8f0;
+    margin-bottom: 24px;
+  }
+  :global(body.mode-nuit) .footer-divider {
+    border-top-color: rgba(255, 255, 255, 0.08);
+  }
+
+  /* Copyright */
+  .footer-copyright {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #94a3b8;
+    margin: 0;
+  }
+  :global(body.mode-nuit) .footer-copyright {
+    color: #64748b;
+  }
+
+  /* MODAL OVERLAY */
+  .privacy-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    padding: 16px;
+  }
+  .privacy-modal-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* MODAL CARD */
+  .privacy-modal-card {
+    background: #ffffff;
+    width: 100%;
+    max-width: 580px;
+    border-radius: 20px;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    transform: scale(0.92) translateY(10px);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .privacy-modal-overlay.open .privacy-modal-card {
+    transform: scale(1) translateY(0);
+  }
+  :global(body.mode-nuit) .privacy-modal-card {
+    background: #1e293b;
+    border-color: #334155;
+    color: #f8fafc;
+  }
+
+  .privacy-modal-close {
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #f1f5f9;
+    border: none;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    z-index: 10;
+    transition: all 0.2s ease;
+  }
+  .privacy-modal-close:hover {
+    background: #ef4444;
+    color: #ffffff;
+  }
+  :global(body.mode-nuit) .privacy-modal-close {
+    background: #334155;
+    color: #cbd5e1;
+  }
+
+  .privacy-modal-tabs {
+    display: flex;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 12px 16px 0;
+    gap: 6px;
+  }
+  :global(body.mode-nuit) .privacy-modal-tabs {
+    background: #0f172a;
+    border-bottom-color: #334155;
+  }
+
+  .policy-tab {
+    flex: 1;
+    padding: 10px 8px;
+    border-radius: 10px 10px 0 0;
+    border: 1px solid transparent;
+    border-bottom: none;
+    background: transparent;
+    font-family: var(--fh, sans-serif);
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .policy-tab.active {
+    background: #ffffff;
+    color: var(--blue, #2563eb);
+    border-color: #e2e8f0;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.03);
+  }
+  :global(body.mode-nuit) .policy-tab {
+    color: #94a3b8;
+  }
+  :global(body.mode-nuit) .policy-tab.active {
+    background: #1e293b;
+    color: #60a5fa;
+    border-color: #334155;
+  }
+
+  .privacy-modal-body {
+    padding: 24px;
+    overflow-y: auto;
+    text-align: left;
+    flex: 1;
+  }
+
+  .policy-content {
+    display: none;
+  }
+  .policy-content.active {
+    display: block;
+    animation: fadeIn 0.25s ease;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .policy-content h3 {
+    font-family: var(--fh, sans-serif);
+    font-size: 18px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 12px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .policy-content h3 i {
+    color: var(--blue, #2563eb);
+  }
+  :global(body.mode-nuit) .policy-content h3 {
+    color: #ffffff;
+  }
+  :global(body.mode-nuit) .policy-content h3 i {
+    color: #60a5fa;
+  }
+
+  .policy-content h4 {
+    font-family: var(--fh, sans-serif);
+    font-size: 14.5px;
+    font-weight: 700;
+    color: #334155;
+    margin: 16px 0 6px 0;
+  }
+  :global(body.mode-nuit) .policy-content h4 {
+    color: #cbd5e1;
+  }
+
+  .policy-content p {
+    font-size: 13.5px;
+    color: #475569;
+    line-height: 1.65;
+    margin: 0 0 10px 0;
+  }
+  :global(body.mode-nuit) .policy-content p {
+    color: #94a3b8;
+  }
+
+  .policy-content ul {
+    padding-left: 20px;
+    margin: 0 0 12px 0;
+  }
+  .policy-content li {
+    font-size: 13.5px;
+    color: #475569;
+    line-height: 1.6;
+    margin-bottom: 4px;
+  }
+  :global(body.mode-nuit) .policy-content li {
+    color: #94a3b8;
+  }
+
+  .privacy-modal-footer {
+    padding: 14px 24px;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    text-align: right;
+  }
+  :global(body.mode-nuit) .privacy-modal-footer {
+    background: #0f172a;
+    border-top-color: #334155;
+  }
+
+  .modal-accept-btn {
+    padding: 10px 22px;
+    background: var(--blue, #2563eb);
+    color: #ffffff;
+    border: none;
+    border-radius: 10px;
+    font-family: var(--fh, sans-serif);
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+  }
+  .modal-accept-btn:hover {
+    background: var(--blue-d, #1d4ed8);
+    transform: translateY(-1px);
+  }
+</style>
+
+<script is:inline>
+  document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('privacyModal');
+    const closeBtn = document.getElementById('closePrivacyModal');
+    const acceptBtn = document.getElementById('acceptPrivacyModal');
+    const privacyBtns = document.querySelectorAll('.privacy-link-btn');
+    const policyTabs = document.querySelectorAll('.policy-tab');
+    const policyContents = document.querySelectorAll('.policy-content');
+
+    function switchPolicy(policyType) {
+      policyTabs.forEach(tab => {
+        if (tab.getAttribute('data-target') === policyType) {
+          tab.classList.add('active');
+        } else {
+          tab.classList.remove('active');
+        }
+      });
+      policyContents.forEach(content => {
+        if (content.id === `policy-${policyType}`) {
+          content.classList.add('active');
+        } else {
+          content.classList.remove('active');
+        }
+      });
+    }
+
+    privacyBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const policy = btn.getAttribute('data-policy');
+        switchPolicy(policy);
+        if (modal) {
+          modal.classList.add('open');
+          modal.setAttribute('aria-hidden', 'false');
+          document.body.style.overflow = 'hidden';
+        }
+      });
+    });
+
+    policyTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const policy = tab.getAttribute('data-target');
+        switchPolicy(policy);
+      });
+    });
+
+    function closeModal() {
+      if (modal) {
+        modal.classList.remove('open');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+      }
+    }
+
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    if (acceptBtn) acceptBtn.addEventListener('click', closeModal);
+
+    if (modal) {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+      });
+    }
+  });
+</script>
