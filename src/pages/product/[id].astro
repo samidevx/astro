@@ -251,25 +251,34 @@ const cleanDesc = (p.description || "")
 
         <div class="order-col" id="orderFormBlock">
             <div class="order-card">
-                <div class="order-hdr" style="background: #2563eb;">
-                    <h2
-                        style="font-family: var(--fh); font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 8px; margin: 0; color: #fff;"
-                    >
-                        <i class="fa fa-shopping-cart"></i> Passer ma commande
-                    </h2>
-                    <p style="font-size: 13px; opacity: 0.9; margin-top: 5px;">
-                        Remplissez le formulaire ci-dessous
-                    </p>
+                <div class="order-hdr">
+                    <div>
+                        <h2><i class="fa fa-shield-halved"></i> Passer Ma Commande</h2>
+                        <p>Paiement cash à la livraison · Satisfait ou remboursé</p>
+                    </div>
+                    <div class="order-hdr-badge"><i class="fa fa-lock"></i> 100% Sécurisé</div>
+                </div>
+                <div class="checkout-steps">
+                    <div class="step-item active">
+                        <span class="step-num">1</span>
+                        <span>Coordonnées</span>
+                    </div>
+                    <div class="step-item active">
+                        <span class="step-num">2</span>
+                        <span>Livraison Cash</span>
+                    </div>
                 </div>
                 <div class="order-body">
+                    <div class="commit-msg">
+                        <i class="fa fa-truck-fast"></i> Livraison gratuite & Paiement à la réception !
+                    </div>
+
                     <form id="orderForm">
                         <div class="form-row">
                             <div class="form-group">
-                                <label class="form-label" for="pays"
-                                    >🌍 Pays <span class="req">*</span></label
-                                >
+                                <label class="form-label" for="pays">🌍 Pays <span class="req">*</span></label>
                                 <select class="form-control" id="pays" required>
-                                    <option value="">Choisir le pays</option>
+                                    <option value="">Choisir votre pays</option>
                                     {
                                         p.pays
                                             .split(",")
@@ -284,15 +293,12 @@ const cleanDesc = (p.description || "")
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label class="form-label" for="tel"
-                                    >📱 Téléphone <span class="req">*</span
-                                    ></label
-                                >
+                                <label class="form-label" for="tel">📱 Téléphone <span class="req">*</span></label>
                                 <input
                                     type="tel"
                                     class="form-control"
                                     id="tel"
-                                    placeholder="XX XXX XX XX"
+                                    placeholder="Numéro de téléphone"
                                     required
                                 />
                             </div>
@@ -300,26 +306,22 @@ const cleanDesc = (p.description || "")
 
                         <div class="form-row">
                             <div class="form-group">
-                                <label class="form-label" for="nom"
-                                    >👤 Nom <span class="req">*</span></label
-                                >
+                                <label class="form-label" for="nom">👤 Nom Complet <span class="req">*</span></label>
                                 <input
                                     type="text"
                                     class="form-control"
                                     id="nom"
-                                    placeholder="Votre nom complet"
+                                    placeholder="Votre Nom & Prénom"
                                     required
                                 />
                             </div>
                             <div class="form-group">
-                                <label class="form-label" for="adr"
-                                    >📍 Ville <span class="req">*</span></label
-                                >
+                                <label class="form-label" for="adr">📍 Ville / Quartier <span class="req">*</span></label>
                                 <input
                                     type="text"
                                     class="form-control"
                                     id="adr"
-                                    placeholder="Ville, Quartier"
+                                    placeholder="Ex: Abidjan, Cocody"
                                     required
                                 />
                             </div>
@@ -329,16 +331,10 @@ const cleanDesc = (p.description || "")
                             {
                                 p.couleur && (
                                     <div class="form-group">
-                                        <label
-                                            class="form-label"
-                                            for="var-couleur"
-                                        >
+                                        <label class="form-label" for="var-couleur">
                                             <i class="fa fa-palette" /> Couleur
                                         </label>
-                                        <select
-                                            class="form-control"
-                                            id="var-couleur"
-                                        >
+                                        <select class="form-control" id="var-couleur">
                                             {p.couleur
                                                 .split(",")
                                                 .map((c: string) => (
@@ -354,17 +350,10 @@ const cleanDesc = (p.description || "")
                             {
                                 p.taille && (
                                     <div class="form-group">
-                                        <label
-                                            class="form-label"
-                                            for="var-taille"
-                                        >
-                                            <i class="fa fa-ruler-combined" />{" "}
-                                            Taille
+                                        <label class="form-label" for="var-taille">
+                                            <i class="fa fa-ruler-combined" /> Taille
                                         </label>
-                                        <select
-                                            class="form-control"
-                                            id="var-taille"
-                                        >
+                                        <select class="form-control" id="var-taille">
                                             {p.taille
                                                 .split(",")
                                                 .map((s: string) => (
@@ -380,91 +369,41 @@ const cleanDesc = (p.description || "")
 
                         {
                             p.offres && p.offres.length > 0 && (
-                                <div
-                                    class="offers-selector-wrap"
-                                    style="margin-bottom: 24px;"
-                                >
-                                    <label
-                                        class="form-label"
-                                        style="font-weight: 800; color: #1e293b; margin-bottom: 14px; display: block; text-transform: uppercase; letter-spacing: 0.05em; font-size: 13.5px; font-family: var(--fh);"
-                                    >
-                                        🎁 SÉLECTIONNEZ VOTRE OFFRE
-                                    </label>
-                                    <div
-                                        class="offers-list"
-                                        style="display: flex; flex-direction: column; gap: 12px;"
-                                    >
+                                <div class="offers-selector-wrap">
+                                    <span class="offers-title">🎁 Sélectionner Une Offre Spéciale</span>
+                                    <div class="offers-list">
                                         {p.offres.map(
                                             (off: any, idx: number) => {
                                                 const pct = off.oldPrice
                                                     ? Math.round(
-                                                          ((off.oldPrice -
-                                                              off.price) /
-                                                              off.oldPrice) *
-                                                              100,
+                                                          ((off.oldPrice - off.price) / off.oldPrice) * 100
                                                       )
                                                     : 0;
                                                 return (
-                                                    <label
-                                                        class={`offer-option-card ${idx === 0 ? "active" : ""}`}
-                                                        style={`display: flex; align-items: center; justify-content: space-between; border: 2px solid ${idx === 0 ? "#2563eb" : "#e2e8f0"}; border-radius: 12px; padding: 14px 16px; cursor: pointer; transition: all 0.2s; background: ${idx === 0 ? "#f0f7ff" : "#fff"}; position: relative;`}
-                                                    >
+                                                    <label class={`offer-option-card ${idx === 0 ? "active" : ""}`}>
                                                         <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
                                                             <input
                                                                 type="radio"
                                                                 name="selected_offer"
                                                                 value={idx}
-                                                                checked={
-                                                                    idx === 0
-                                                                }
+                                                                checked={idx === 0}
                                                                 class="offer-radio"
-                                                                style="width: 18px; height: 18px; cursor: pointer; accent-color: #2563eb;"
                                                             />
                                                             <div style="display: flex; flex-direction: column; gap: 4px;">
-                                                                <span
-                                                                    class="offer-option-title"
-                                                                    style="font-weight: 700; color: #1e293b; font-size: 14.5px;"
-                                                                >
-                                                                    {off.title}
-                                                                </span>
-                                                                <span
-                                                                    class="offer-option-qty"
-                                                                    style="display: inline-flex; align-items: center; gap: 4px; background: #e2e8f0; color: #475569; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; width: max-content;"
-                                                                >
-                                                                    📦 x
-                                                                    {off.qty}
-                                                                </span>
+                                                                <span class="offer-option-title">{off.title}</span>
+                                                                <span class="offer-option-qty">📦 Quantité: x{off.qty}</span>
                                                             </div>
                                                         </div>
                                                         <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 2px;">
-                                                            <span
-                                                                class="offer-option-price"
-                                                                style="font-size: 17.5px; font-weight: 800; color: #2563eb;"
-                                                            >
-                                                                {fmtPrice(
-                                                                    off.price,
-                                                                )}{" "}
-                                                                {p.currency}
+                                                            <span class="offer-option-price">
+                                                                {fmtPrice(off.price)} {p.currency}
                                                             </span>
                                                             {off.oldPrice && (
                                                                 <div style="display: flex; align-items: center; gap: 6px;">
-                                                                    <span
-                                                                        class="offer-option-oldprice"
-                                                                        style="font-size: 13px; text-decoration: line-through; color: #94a3b8;"
-                                                                    >
-                                                                        {fmtPrice(
-                                                                            off.oldPrice,
-                                                                        )}{" "}
-                                                                        {
-                                                                            p.currency
-                                                                        }
+                                                                    <span class="offer-option-oldprice">
+                                                                        {fmtPrice(off.oldPrice)} {p.currency}
                                                                     </span>
-                                                                    <span
-                                                                        class="offer-option-badge"
-                                                                        style="background: #dcfce7; color: #15803d; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 6px;"
-                                                                    >
-                                                                        -{pct}%
-                                                                    </span>
+                                                                    <span class="offer-option-badge">-{pct}%</span>
                                                                 </div>
                                                             )}
                                                         </div>
@@ -482,21 +421,14 @@ const cleanDesc = (p.description || "")
                                 p.bundle !== "yes" &&
                                 (!p.offres || p.offres.length === 0) && (
                                     <div class="qty-action-wrap">
-                                        <label
-                                            class="qty-action-lbl"
-                                            for="manual-qty"
-                                        >
-                                            Quantité
-                                        </label>
+                                        <label class="qty-action-lbl" for="manual-qty">Quantité</label>
                                         <div class="qty-box">
                                             <button
                                                 type="button"
                                                 class="qty-btn"
                                                 id="btn-qty-minus"
                                                 aria-label="Diminuer la quantité"
-                                            >
-                                                -
-                                            </button>
+                                            >-</button>
                                             <input
                                                 type="number"
                                                 class="qty-val"
@@ -509,9 +441,7 @@ const cleanDesc = (p.description || "")
                                                 class="qty-btn"
                                                 id="btn-qty-plus"
                                                 aria-label="Augmenter la quantité"
-                                            >
-                                                +
-                                            </button>
+                                            >+</button>
                                         </div>
                                     </div>
                                 )
@@ -519,35 +449,41 @@ const cleanDesc = (p.description || "")
 
                         <div class="order-summary">
                             <div class="sum-row">
-                                <span>Prix du produit</span>
-                                <span id="sum-price"
-                                    >{fmtPrice(p.price)} {p.currency}</span
-                                >
+                                <span>Article</span>
+                                <span id="sum-price">{fmtPrice(p.price)} {p.currency}</span>
                             </div>
                             <div class="sum-row">
                                 <span>Quantité</span>
                                 <span id="sum-qty">1</span>
                             </div>
                             <div class="sum-row">
-                                <span>Prix de livraison</span>
-                                <span>Gratuit</span>
+                                <span>Frais de livraison</span>
+                                <span style="color: var(--green); font-weight: 800;"><i class="fa fa-check-circle"></i> Gratuit</span>
                             </div>
                             <div class="sum-total">
-                                <span>Total général</span>
-                                <span id="sum-total"
-                                    >{fmtPrice(p.price)} {p.currency}</span
-                                >
+                                <span>Total à payer:</span>
+                                <span id="sum-total">{fmtPrice(p.price)} {p.currency}</span>
                             </div>
                         </div>
 
-                        <button
-                            type="submit"
-                            class="submit-btn"
-                            id="submitBtn"
-                            style="background: #10b981; padding: 18px;"
-                        >
-                            <i class="fa fa-lock"></i> Valider Ma Commande
+                        <button type="submit" class="submit-btn" id="submitBtn">
+                            <i class="fa fa-bag-shopping"></i> Valider Ma Commande
                         </button>
+
+                        <div class="trust-seals">
+                            <div class="seal-item">
+                                <i class="fa fa-truck-fast"></i>
+                                <span>Livraison Rapide</span>
+                            </div>
+                            <div class="seal-item">
+                                <i class="fa fa-hand-holding-dollar"></i>
+                                <span>Payer À La Livraison</span>
+                            </div>
+                            <div class="seal-item">
+                                <i class="fa fa-rotate-left"></i>
+                                <span>7 Jours Satisfait</span>
+                            </div>
+                        </div>
                     </form>
                 </div>
             </div>
@@ -710,12 +646,10 @@ const cleanDesc = (p.description || "")
                         const r = card.querySelector(".offer-radio");
                         if (cIdx === idx) {
                             if (r) r.checked = true;
-                            card.style.borderColor = "#2563eb";
-                            card.style.background = "#f0f7ff";
+                            card.classList.add("active");
                         } else {
                             if (r) r.checked = false;
-                            card.style.borderColor = "#e2e8f0";
-                            card.style.background = "#fff";
+                            card.classList.remove("active");
                         }
                     });
 
