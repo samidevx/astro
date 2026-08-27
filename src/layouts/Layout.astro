@@ -2,6 +2,8 @@
 import '../styles/global.css';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import defaultSettings from '../data/settings.json';
+import { env } from 'cloudflare:workers';
 
 interface Props {
   title?: string;
@@ -16,6 +18,18 @@ const {
   image = "https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&q=80&w=1200",
   product
 } = Astro.props;
+
+let settings = defaultSettings as any;
+try {
+  const kv = (env as any)?.STORE_KV;
+  if (kv) {
+    const s = await kv.get('settings:config', 'json');
+    if (s) settings = { ...defaultSettings, ...s };
+  }
+} catch (e) {}
+
+const fbPixelId = (settings.facebookPixelId || '').trim();
+const fbPixelEnabled = settings.facebookPixelEnabled !== false && Boolean(fbPixelId);
 ---
 
 <!DOCTYPE html>
@@ -72,24 +86,28 @@ const {
   </script>
 
   <!-- Meta Pixel -->
-  <script is:inline>
-    setTimeout(function () {
-      !function (f, b, e, v, n, t, s) {
-        if (f.fbq) return; n = f.fbq = function () {
-          n.callMethod ?
-          n.callMethod.apply(n, arguments) : n.queue.push(arguments)
-        };
-        if (!f._fbq) f._fbq = n; n.push = n; n.loaded = !0; n.version = '2.0';
-        n.queue = []; t = b.createElement(e); t.async = !0;
-        t.src = v; s = b.getElementsByTagName(e)[0];
-        s.parentNode.insertBefore(t, s)
-      }(window, document, 'script',
-        'https://connect.facebook.net/en_US/fbevents.js');
-      fbq('init', '950990427685437');
-      fbq('track', 'PageView');
-    }, 3000);
-  </script>
-  <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=950990427685437&ev=PageView&noscript=1" /></noscript>
+  {fbPixelEnabled && fbPixelId && (
+    <>
+      <script is:inline define:vars={{ fbPixelId }}>
+        setTimeout(function () {
+          !function (f, b, e, v, n, t, s) {
+            if (f.fbq) return; n = f.fbq = function () {
+              n.callMethod ?
+              n.callMethod.apply(n, arguments) : n.queue.push(arguments)
+            };
+            if (!f._fbq) f._fbq = n; n.push = n; n.loaded = !0; n.version = '2.0';
+            n.queue = []; t = b.createElement(e); t.async = !0;
+            t.src = v; s = b.getElementsByTagName(e)[0];
+            s.parentNode.insertBefore(t, s)
+          }(window, document, 'script',
+            'https://connect.facebook.net/en_US/fbevents.js');
+          fbq('init', fbPixelId);
+          fbq('track', 'PageView');
+        }, 3000);
+      </script>
+      <noscript><img height="1" width="1" style="display:none" src={`https://www.facebook.com/tr?id=${fbPixelId}&ev=PageView&noscript=1`} /></noscript>
+    </>
+  )}
 
   {product && (
     <>

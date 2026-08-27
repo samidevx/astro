@@ -10,6 +10,7 @@ function router() {
 
   const main = document.getElementById('admin-main');
   if (path === '/admin/orders') renderOrders(main);
+  else if (path === '/admin/settings') renderSettings(main);
   else if (path === '/admin/products/new') renderProductForm(main, null);
   else if (path.startsWith('/admin/products/edit/')) {
     const id = path.split('/').pop();
@@ -28,6 +29,7 @@ function renderShell(root, path) {
     { href: '/admin', icon: 'fa-chart-line', label: 'Dashboard' },
     { href: '/admin/products', icon: 'fa-box', label: 'Products' },
     { href: '/admin/orders', icon: 'fa-shopping-bag', label: 'Orders' },
+    { href: '/admin/settings', icon: 'fa-gear', label: 'Settings' },
   ];
 
   root.innerHTML = `
@@ -556,3 +558,103 @@ async function renderOrders(el) {
     toast('CSV exported!');
   };
 }
+
+// ── Settings ──────────────────────────────────────────────
+async function renderSettings(el) {
+  el.innerHTML = `
+    <div class="admin-topbar">
+      <h1>Settings</h1>
+    </div>
+    <div class="table-card" style="padding:0; max-width: 800px;">
+      <div style="padding: 24px 28px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+        <div>
+          <h2 style="font-size:18px; font-weight:700; color:#fff; margin:0 0 4px 0; display:flex; align-items:center; gap:10px;">
+            <i class="fa-brands fa-facebook" style="color: #1877f2; font-size: 22px;"></i> Facebook Pixel Configuration
+          </h2>
+          <p style="font-size:13px; color:var(--muted); margin:0;">Configure Meta Pixel tracking for your online store.</p>
+        </div>
+        <span class="badge badge-blue" style="font-size:11px; font-weight:600;"><i class="fa fa-chart-line"></i> Meta Events</span>
+      </div>
+      <form id="settingsForm" style="padding:28px;">
+        <div class="empty-state" id="settingsLoading"><i class="fa fa-spinner fa-spin"></i><p>Loading settings…</p></div>
+        <div id="settingsFields" style="display:none; flex-direction:column; gap:20px;">
+          <div class="form-group full">
+            <label class="form-label" style="display:flex; justify-content:space-between; align-items:center;">
+              <span>Facebook Pixel ID *</span>
+              <small style="color:var(--accent); font-weight:400;">Format: 15-16 digits</small>
+            </label>
+            <div style="position:relative;">
+              <i class="fa fa-key" style="position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--muted);"></i>
+              <input type="text" class="form-control" id="s-fbPixelId" placeholder="e.g. 950990427685437" style="padding-left:40px; font-family:monospace;" required>
+            </div>
+            <p style="font-size:12px; color:var(--muted); margin-top:6px;">
+              Enter your Meta Pixel ID from Events Manager (e.g. <code>950990427685437</code>).
+            </p>
+          </div>
+
+          <div class="form-group full">
+            <label class="form-label">Pixel Status</label>
+            <select class="form-control" id="s-fbPixelEnabled">
+              <option value="true">Enabled (Active Tracking)</option>
+              <option value="false">Disabled (Pause Tracking)</option>
+            </select>
+          </div>
+
+          <div style="background: rgba(24, 119, 242, 0.08); border: 1px solid rgba(24, 119, 242, 0.2); border-radius: 12px; padding: 18px 20px; color: #e2e8f0; font-size: 13.5px; line-height: 1.6;">
+            <div style="font-weight: 700; color: #60a5fa; margin-bottom: 8px; display:flex; align-items:center; gap:8px;">
+              <i class="fa fa-circle-info"></i> How Meta Pixel Tracking Works
+            </div>
+            <ul style="margin: 0; padding-left: 18px; color: #cbd5e1; display:flex; flex-direction:column; gap:6px;">
+              <li><strong>PageView:</strong> Automatically tracked on all store page visits.</li>
+              <li><strong>InitiateCheckout:</strong> Fired when a customer starts ordering a product.</li>
+              <li><strong>Purchase:</strong> Fired when an order is successfully submitted.</li>
+            </ul>
+          </div>
+
+          <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:12px;">
+            <button type="submit" class="btn btn-primary" id="saveSettingsBtn">
+              <i class="fa fa-save"></i> Save Settings
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  `;
+
+  const settings = await api.getSettings();
+
+  document.getElementById('settingsLoading').style.display = 'none';
+  const fields = document.getElementById('settingsFields');
+  fields.style.display = 'flex';
+
+  document.getElementById('s-fbPixelId').value = settings.facebookPixelId || '';
+  document.getElementById('s-fbPixelEnabled').value = settings.facebookPixelEnabled !== false ? 'true' : 'false';
+
+  document.getElementById('settingsForm').onsubmit = async e => {
+    e.preventDefault();
+    const btn = document.getElementById('saveSettingsBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving…';
+
+    const data = {
+      facebookPixelId: document.getElementById('s-fbPixelId').value.trim(),
+      facebookPixelEnabled: document.getElementById('s-fbPixelEnabled').value === 'true'
+    };
+
+    try {
+      const res = await api.updateSettings(data);
+      if (res.ok) {
+        toast('Facebook Pixel settings saved successfully!');
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast(err.error || 'Failed to save settings', 'error');
+      }
+    } catch (err) {
+      toast('Network error. Failed to save.', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa fa-save"></i> Save Settings';
+    }
+  };
+}
+

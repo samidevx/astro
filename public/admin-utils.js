@@ -18,6 +18,13 @@ export const api = {
     const r = await fetch('/api/orders');
     return r.ok ? r.json() : [];
   },
+  async getSettings() {
+    const r = await fetch('/api/settings');
+    return r.ok ? r.json() : { facebookPixelId: '', facebookPixelEnabled: true };
+  },
+  async updateSettings(data) {
+    return fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+  },
   async logout() {
     await fetch('/api/auth/logout', { method: 'POST' });
     window.location.href = '/admin/login';
