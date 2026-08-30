@@ -86,6 +86,23 @@ body.admin-body {
 .admin-nav-item:hover { background: rgba(255,255,255,0.05); color: var(--text); }
 .admin-nav-item.active { background: var(--accent-glow); color: var(--accent); font-weight: 600; }
 
+.nav-badge {
+  margin-left: auto;
+  background: var(--accent-glow);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(99,102,241,0.25);
+  transition: all 0.15s ease;
+}
+.admin-nav-item.active .nav-badge {
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+}
+
 .nav-spacer { flex: 1; }
 
 .admin-sidebar-footer {
@@ -218,6 +235,7 @@ body.admin-body {
 .badge-red { background: var(--red-l); color: var(--red); }
 .badge-blue { background: var(--blue-l); color: var(--blue); }
 .badge-purple { background: var(--accent-glow); color: var(--accent); }
+.badge-gray { background: rgba(255,255,255,0.08); color: var(--muted); }
 
 /* ---- BUTTONS ---- */
 .btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; border: none; transition: all 0.15s; }
@@ -252,6 +270,10 @@ body.admin-body {
   padding: 9px 14px;
   color: var(--text); font-family: inherit; font-size: 13px;
   outline: none; cursor: pointer;
+}
+.preset-btn.active {
+  background: var(--accent) !important;
+  color: #ffffff !important;
 }
 select.filter-select option { background: var(--surface2); }
 input[type="date"].filter-select::-webkit-calendar-picker-indicator {
