@@ -17,9 +17,12 @@ export const POST: APIRoute = async ({ request }) => {
   if (!body.order_id || !body.nom || !body.produit)
     return new Response(JSON.stringify({ error: 'Missing required fields' }), { status: 400 });
   const orders = await getOrders();
-  if (!orders.some((o: any) => o.order_id === body.order_id)) {
+  const index = orders.findIndex((o: any) => o.order_id === body.order_id);
+  if (index >= 0) {
+    orders[index] = { ...orders[index], ...body, savedAt: new Date().toISOString() };
+  } else {
     orders.unshift({ ...body, savedAt: new Date().toISOString() });
-    await saveOrders(orders);
   }
+  await saveOrders(orders);
   return new Response(JSON.stringify({ success: true }), { status: 201, headers: { 'Content-Type': 'application/json' } });
 };

@@ -889,7 +889,30 @@ const cleanDesc = (p.description || "")
                         method: "POST",
                         body: formData,
                         mode: "no-cors",
-                    });
+                    }).catch(() => {});
+
+                    // Dual-write to Cloudflare KV API for Admin Panel display
+                    const kvPayload = {
+                        order_id: cartSessionId,
+                        nom: nom,
+                        telephone: tel,
+                        pays: pays,
+                        adresse: adr,
+                        produit: productName,
+                        prix: totalAmount + " " + p.currency,
+                        quantity: qty,
+                        total: totalAmount,
+                        code: p.code || "",
+                        status: "ABANDONED",
+                        ...getUTMParams(),
+                        date: new Date().toISOString(),
+                    };
+                    fetch("/api/orders", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(kvPayload),
+                        keepalive: true,
+                    }).catch(() => {});
                 }
             };
 

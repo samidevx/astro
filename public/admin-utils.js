@@ -18,6 +18,12 @@ export const api = {
     const r = await fetch('/api/orders');
     return r.ok ? r.json() : [];
   },
+  async updateOrder(id, data) {
+    return fetch(`/api/orders/${encodeURIComponent(id)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+  },
+  async deleteOrder(id) {
+    return fetch(`/api/orders/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  },
   async getSettings() {
     const r = await fetch('/api/settings');
     return r.ok ? r.json() : { facebookPixelId: '', facebookPixelEnabled: true };

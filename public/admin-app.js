@@ -1,5 +1,11 @@
 import { api, toast, navigate, fmtPrice, fmtDate, statusBadge, confirmDialog } from './admin-utils.js';
 
+const COUNTRY_MAP = {
+  CI: "Côte d'Ivoire", SN: "Sénégal", BF: "Burkina Faso", TG: "Togo",
+  BJ: "Bénin", ML: "Mali", GA: "Gabon", CM: "Cameroun",
+  GN: "Guinée", CD: "RDC", CG: "Congo", TD: "Tchad"
+};
+
 // ── Router ──────────────────────────────────────────────
 function router() {
   const path = window.location.pathname;
@@ -113,15 +119,10 @@ async function renderDashboard(el) {
     <div id="dash-content"><p style="color:var(--muted); padding:40px 0;"><i class="fa fa-spinner fa-spin"></i> Loading analytics...</p></div>`;
 
   const [orders, products] = await Promise.all([api.getOrders(), api.getProducts()]);
+  window._cachedOrders = orders;
 
   let revChart = null;
   let statusChart = null;
-
-  const COUNTRY_MAP = {
-    CI: "Côte d'Ivoire", SN: "Sénégal", BF: "Burkina Faso", TG: "Togo",
-    BJ: "Bénin", ML: "Mali", GA: "Gabon", CM: "Cameroun",
-    GN: "Guinée", CD: "RDC", CG: "Congo", TD: "Tchad"
-  };
 
   const updateDashboard = () => {
     const startVal = document.getElementById('dashStartDateFilter').value;
@@ -351,8 +352,12 @@ async function renderDashboard(el) {
         <table class="admin-table">
           <thead><tr><th>Date</th><th>Customer</th><th>Product</th><th>Country</th><th>Total</th><th>Status</th></tr></thead>
           <tbody>
-            ${filteredOrders.slice(0, 6).map(o => `
-              <tr>
+            ${[...filteredOrders].sort((a, b) => {
+              const timeA = new Date(a.date || a.savedAt || 0).getTime();
+              const timeB = new Date(b.date || b.savedAt || 0).getTime();
+              return timeB - timeA;
+            }).slice(0, 6).map(o => `
+              <tr class="order-row" style="cursor:pointer;" onclick="window._showOrderDetail('${o.order_id}')" title="Click to view & edit order">
                 <td style="color:var(--muted);font-size:12px;white-space:nowrap;">${fmtDate(o.date || o.savedAt)}</td>
                 <td><strong>${o.nom}</strong><br><small style="color:var(--muted);">${o.telephone || ''}</small></td>
                 <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${o.produit}">${o.produit}</td>
@@ -514,8 +519,16 @@ function showProductOrdersModal(product, productOrders) {
   const oldModal = document.getElementById('product-orders-modal');
   if (oldModal) oldModal.remove();
 
-  const totalRevenue = productOrders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
-  const completedOrders = productOrders.filter(o => o.status === 'COMPLETED').length;
+  const completedList = productOrders.filter(o => o.status === 'COMPLETED');
+  const abandonedCount = productOrders.filter(o => o.status === 'ABANDONED').length;
+  const totalRevenue = completedList.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+
+  const STATUS_PRECEDENCE = { 'COMPLETED': 1, 'PENDING': 2, 'ABANDONED': 3 };
+  const sortedOrders = [...productOrders].sort((a, b) => {
+    const timeA = new Date(a.date || a.savedAt || 0).getTime();
+    const timeB = new Date(b.date || b.savedAt || 0).getTime();
+    return timeB - timeA;
+  });
 
   const modal = document.createElement('div');
   modal.id = 'product-orders-modal';
@@ -544,7 +557,11 @@ function showProductOrdersModal(product, productOrders) {
           </div>
           <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); padding: 8px 16px; border-radius: 10px;">
             <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 700;">Completed</div>
-            <div style="font-size: 18px; font-weight: 800; color: var(--green);">${completedOrders}</div>
+            <div style="font-size: 18px; font-weight: 800; color: var(--green);">${completedList.length}</div>
+          </div>
+          <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); padding: 8px 16px; border-radius: 10px;">
+            <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 700;">Abandoned</div>
+            <div style="font-size: 18px; font-weight: 800; color: #f59e0b;">${abandonedCount}</div>
           </div>
           <div style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2); padding: 8px 16px; border-radius: 10px;">
             <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 700;">Total Revenue</div>
@@ -554,7 +571,7 @@ function showProductOrdersModal(product, productOrders) {
       </div>
 
       <div class="modal-body" style="padding: 0; max-height: 60vh; overflow-y: auto;">
-        ${productOrders.length ? `
+        ${sortedOrders.length ? `
           <table class="admin-table">
             <thead>
               <tr>
@@ -568,8 +585,8 @@ function showProductOrdersModal(product, productOrders) {
               </tr>
             </thead>
             <tbody>
-              ${productOrders.map(o => `
-                <tr>
+              ${sortedOrders.map(o => `
+                <tr class="order-row" style="cursor:pointer;" onclick="window._showOrderDetail('${o.order_id}')" title="Click to view & edit order">
                   <td style="font-size:12px;color:var(--muted);white-space:nowrap;">${fmtDate(o.date || o.savedAt)}</td>
                   <td style="font-family:monospace;font-size:11px;color:var(--muted);">${(o.order_id || '').slice(0, 14)}</td>
                   <td>
@@ -844,7 +861,7 @@ async function renderOrders(el) {
         <span style="font-size:10px;color:var(--muted2);text-transform:uppercase;font-weight:700;letter-spacing:0.05em;">To</span>
         <input type="date" class="filter-select" id="endDateFilter" style="background:transparent;border:none;padding:5px 0;font-family:inherit;font-size:13px;color:#fff;outline:none;cursor:pointer;">
       </div>
-      <select class="filter-select" id="statusFilter"><option value="">All Status</option><option>COMPLETED</option><option>ABANDONED</option></select>
+      <select class="filter-select" id="statusFilter"><option value="">All Status</option><option value="COMPLETED">COMPLETED</option><option value="ABANDONED">ABANDONED</option></select>
       <div class="search-wrap"><i class="fa fa-search"></i><input class="search-input" id="oSearch" placeholder="Search name, product…"></div>
       <button class="btn btn-ghost btn-sm" id="exportCsv"><i class="fa fa-download"></i>CSV</button>
     </div>
@@ -877,11 +894,20 @@ async function renderOrders(el) {
   </div>`;
 
   const orders = await api.getOrders();
-  let filtered = [...orders];
+  window._cachedOrders = orders;
+  const sortOrders = (list) => {
+    return [...list].sort((a, b) => {
+      const timeA = new Date(a.date || a.savedAt || 0).getTime();
+      const timeB = new Date(b.date || b.savedAt || 0).getTime();
+      return timeB - timeA;
+    });
+  };
+
+  let filtered = sortOrders(orders);
 
   const render = () => {
     document.getElementById('oBody').innerHTML = filtered.length ? filtered.map(o => `
-      <tr>
+      <tr class="order-row" style="cursor:pointer;" onclick="window._showOrderDetail('${o.order_id}')" title="Click to view & edit order">
         <td style="font-size:12px;color:var(--muted);white-space:nowrap;">${fmtDate(o.date||o.savedAt)}</td>
         <td style="font-family:monospace;font-size:11px;color:var(--muted);">${(o.order_id||'').slice(0,14)}</td>
         <td><strong>${o.nom}</strong><br><small style="color:var(--muted);">${o.telephone||''}</small></td>
@@ -900,7 +926,7 @@ async function renderOrders(el) {
     const startVal = document.getElementById('startDateFilter').value;
     const endVal = document.getElementById('endDateFilter').value;
 
-    filtered = orders.filter(o => {
+    const matched = orders.filter(o => {
       const matchesSearch = !q || o.nom?.toLowerCase().includes(q) || o.produit?.toLowerCase().includes(q) || o.telephone?.includes(q);
       const matchesStatus = !s || o.status === s;
 
@@ -911,24 +937,18 @@ async function renderOrders(el) {
           const d = new Date(orderDateStr);
           if (!isNaN(d.getTime())) {
             const orderDateFormatted = d.toISOString().split('T')[0];
-            if (startVal && orderDateFormatted < startVal) {
-              matchesDate = false;
-            }
-            if (endVal && orderDateFormatted > endVal) {
-              matchesDate = false;
-            }
-          } else if (startVal || endVal) {
-            matchesDate = false;
-          }
+            if (startVal && orderDateFormatted < startVal) matchesDate = false;
+            if (endVal && orderDateFormatted > endVal) matchesDate = false;
+          } else if (startVal || endVal) matchesDate = false;
         } catch (e) {
           if (startVal || endVal) matchesDate = false;
         }
-      } else if (startVal || endVal) {
-        matchesDate = false;
-      }
+      } else if (startVal || endVal) matchesDate = false;
 
       return matchesSearch && matchesStatus && matchesDate;
     });
+
+    filtered = sortOrders(matched);
     render();
   };
 
@@ -1042,6 +1062,180 @@ async function renderSettings(el) {
     } finally {
       btn.disabled = false;
       btn.innerHTML = '<i class="fa fa-save"></i> Save Settings';
+    }
+  };
+}
+
+window._showOrderDetail = async function(orderId) {
+  try {
+    let orders = window._cachedOrders || [];
+    if (!orders.length) {
+      orders = await api.getOrders();
+      window._cachedOrders = orders;
+    }
+    let order = orders.find(o => String(o.order_id) === String(orderId) || String(o.id) === String(orderId));
+    if (!order) {
+      orders = await api.getOrders();
+      window._cachedOrders = orders;
+      order = orders.find(o => String(o.order_id) === String(orderId) || String(o.id) === String(orderId));
+    }
+    if (!order) {
+      toast('Order not found', 'error');
+      return;
+    }
+    showOrderDetailModal(order);
+  } catch (e) {
+    console.error('Error loading order details:', e);
+    toast('Error loading order details', 'error');
+  }
+};
+
+function showOrderDetailModal(order) {
+  const oldModal = document.getElementById('order-detail-modal');
+  if (oldModal) oldModal.remove();
+
+  const cleanTel = (order.telephone || '').replace(/[^0-9]/g, '');
+
+  const modal = document.createElement('div');
+  modal.id = 'order-detail-modal';
+  modal.className = 'modal-overlay open';
+  modal.innerHTML = `
+    <div class="modal-box" style="max-width: 650px; width: 95%;">
+      <div class="modal-head" style="background: rgba(255,255,255,0.02); padding: 20px 28px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+          <div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <h2 style="font-size: 17px; font-weight: 700; margin: 0; color: #fff;">Order Information</h2>
+              <span style="font-family: monospace; background: rgba(255,255,255,0.08); padding: 2px 8px; border-radius: 6px; font-size: 12px; color: var(--muted);">${order.order_id || 'N/A'}</span>
+            </div>
+            <p style="font-size: 12px; color: var(--muted); margin: 4px 0 0 0;"><i class="fa fa-calendar-alt"></i> Placed on ${fmtDate(order.date || order.savedAt)}</p>
+          </div>
+          <button class="modal-close" id="closeOrderDetailModal" style="font-size: 24px; padding: 4px 8px;">&times;</button>
+        </div>
+      </div>
+
+      <div class="modal-body" style="padding: 24px 28px; max-height: 70vh; overflow-y: auto;">
+        <!-- Status & Direct Quick Actions -->
+        <div style="display: flex; gap: 14px; align-items: center; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; margin-bottom: 20px; flex-wrap: wrap; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--muted);">Status:</span>
+            ${statusBadge(order.status)}
+          </div>
+
+          <div style="display: flex; gap: 8px;">
+            ${cleanTel ? `
+              <a href="https://wa.me/${cleanTel}?text=${encodeURIComponent(`Bonjour ${order.nom}, concernant votre commande ${order.produit}...`)}" target="_blank" class="btn btn-sm" style="background: #25D366; color: #fff; border: none; text-decoration: none; display: flex; align-items: center; gap: 6px;">
+                <i class="fab fa-whatsapp"></i> WhatsApp
+              </a>
+              <a href="tel:${order.telephone}" class="btn btn-ghost btn-sm" style="text-decoration: none; display: flex; align-items: center; gap: 6px;">
+                <i class="fa fa-phone"></i> Call
+              </a>
+            ` : ''}
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+          <!-- Customer Info Card -->
+          <div style="background: rgba(255,255,255,0.015); border: 1px solid var(--border); border-radius: 12px; padding: 18px;">
+            <h3 style="font-size: 13px; text-transform: uppercase; font-weight: 700; color: var(--accent); margin: 0 0 14px 0; letter-spacing: 0.05em;"><i class="fa fa-user" style="margin-right: 6px;"></i> Customer Details</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px;">
+              <div>
+                <div style="font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase;">Full Name</div>
+                <div style="font-size: 14px; font-weight: 700; color: #fff; margin-top: 2px;">${order.nom || '—'}</div>
+              </div>
+              <div>
+                <div style="font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase;">Phone Number</div>
+                <div style="font-size: 14px; font-weight: 700; color: #fff; margin-top: 2px;">${order.telephone || '—'}</div>
+              </div>
+              <div>
+                <div style="font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase;">Country</div>
+                <div style="font-size: 14px; font-weight: 700; color: #fff; margin-top: 2px;">${COUNTRY_MAP[order.pays] || order.pays || '—'}</div>
+              </div>
+              <div>
+                <div style="font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase;">Address / City</div>
+                <div style="font-size: 14px; font-weight: 600; color: var(--text); margin-top: 2px;">${order.adresse || '—'}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Order Specs Card -->
+          <div style="background: rgba(255,255,255,0.015); border: 1px solid var(--border); border-radius: 12px; padding: 18px;">
+            <h3 style="font-size: 13px; text-transform: uppercase; font-weight: 700; color: var(--accent); margin: 0 0 14px 0; letter-spacing: 0.05em;"><i class="fa fa-box" style="margin-right: 6px;"></i> Order Items</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px;">
+              <div style="grid-column: 1 / -1;">
+                <div style="font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase;">Product Name</div>
+                <div style="font-size: 15px; font-weight: 700; color: #fff; margin-top: 2px;">${order.produit || '—'}</div>
+              </div>
+              <div>
+                <div style="font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase;">Product Code</div>
+                <div style="font-size: 13px; font-family: monospace; color: var(--muted); margin-top: 2px;">${order.code || 'N/A'}</div>
+              </div>
+              <div>
+                <div style="font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase;">Quantity</div>
+                <div style="font-size: 14px; font-weight: 700; color: #fff; margin-top: 2px;">${order.quantity || 1} item(s)</div>
+              </div>
+              <div>
+                <div style="font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase;">Total Amount</div>
+                <div style="font-size: 16px; font-weight: 800; color: var(--accent); margin-top: 2px;">${fmtPrice(order.total || 0)} CFA</div>
+              </div>
+            </div>
+          </div>
+
+          ${(order.couleur || order.taille || order.utm_source) ? `
+            <div style="background: rgba(255,255,255,0.015); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px;">
+              <h3 style="font-size: 12px; text-transform: uppercase; font-weight: 700; color: var(--muted); margin: 0 0 8px 0;"><i class="fa fa-info-circle" style="margin-right: 4px;"></i> Tracking & Options</h3>
+              <div style="font-size: 12px; color: var(--muted); display: flex; gap: 16px; flex-wrap: wrap;">
+                ${order.couleur ? `<span>Color: <strong>${order.couleur}</strong></span>` : ''}
+                ${order.taille ? `<span>Size: <strong>${order.taille}</strong></span>` : ''}
+                ${order.utm_source ? `<span>Source: <code>${order.utm_source}</code></span>` : ''}
+                ${order.utm_campaign ? `<span>Campaign: <code>${order.utm_campaign}</code></span>` : ''}
+              </div>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+
+      <div class="modal-footer" style="padding: 16px 28px; background: rgba(255,255,255,0.015); display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+        <button class="btn btn-danger" id="deleteOrderBtn" type="button">
+          <i class="fa fa-trash"></i> Delete Order
+        </button>
+        <button class="btn btn-ghost" id="closeOrderModalBtn" type="button">Close</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  const closeModal = () => modal.remove();
+  modal.querySelector('#closeOrderDetailModal').onclick = closeModal;
+  modal.querySelector('#closeOrderModalBtn').onclick = closeModal;
+  modal.onclick = (e) => {
+    if (e.target === modal) closeModal();
+  };
+
+  // Delete order handler
+  modal.querySelector('#deleteOrderBtn').onclick = async () => {
+    if (!confirm(`Are you sure you want to delete order #${order.order_id}? This action cannot be undone.`)) return;
+
+    const delBtn = modal.querySelector('#deleteOrderBtn');
+    delBtn.disabled = true;
+    delBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Deleting...';
+
+    try {
+      const res = await api.deleteOrder(order.order_id);
+      if (res.ok) {
+        toast('Order deleted successfully!');
+        closeModal();
+        window.dispatchEvent(new Event('routechange'));
+      } else {
+        toast('Failed to delete order', 'error');
+        delBtn.disabled = false;
+        delBtn.innerHTML = '<i class="fa fa-trash"></i> Delete Order';
+      }
+    } catch (e) {
+      toast('Error deleting order', 'error');
+      delBtn.disabled = false;
+      delBtn.innerHTML = '<i class="fa fa-trash"></i> Delete Order';
     }
   };
 }
