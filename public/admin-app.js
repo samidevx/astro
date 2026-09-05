@@ -6,6 +6,54 @@ const COUNTRY_MAP = {
   GN: "Guinée", CD: "RDC", CG: "Congo", TD: "Tchad"
 };
 
+// ── Theme Management ─────────────────────────────────────
+window.getAdminTheme = function() {
+  try {
+    return localStorage.getItem('admin_theme') || 'light';
+  } catch (e) {
+    return 'light';
+  }
+};
+
+window.setAdminTheme = function(theme) {
+  try {
+    localStorage.setItem('admin_theme', theme);
+  } catch (e) {}
+  document.documentElement.setAttribute('data-theme', theme);
+  window.updateThemeUI();
+  window.dispatchEvent(new CustomEvent('adminthemechange', { detail: { theme } }));
+};
+
+window.toggleAdminTheme = function() {
+  const current = window.getAdminTheme();
+  const next = current === 'dark' ? 'light' : 'dark';
+  window.setAdminTheme(next);
+};
+
+window.updateThemeUI = function() {
+  const isDark = window.getAdminTheme() === 'dark';
+  document.querySelectorAll('.theme-toggle-btn').forEach(btn => {
+    btn.setAttribute('title', isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode');
+    const icon = btn.querySelector('i');
+    if (icon) {
+      icon.className = isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+      icon.style.color = isDark ? '#fbbf24' : '';
+    }
+  });
+};
+
+// Global click delegation for all theme toggle buttons
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.theme-toggle-btn');
+  if (btn) {
+    e.preventDefault();
+    window.toggleAdminTheme();
+  }
+});
+
+// Immediately apply saved theme
+window.setAdminTheme(window.getAdminTheme());
+
 // ── Router ──────────────────────────────────────────────
 function router() {
   const path = window.location.pathname;
@@ -29,6 +77,8 @@ function router() {
     renderProductFormById(main, id);
   } else if (path === '/admin/products') renderProducts(main);
   else renderDashboard(main);
+
+  window.updateThemeUI();
 }
 
 window.addEventListener('routechange', router);
@@ -45,6 +95,7 @@ function renderPlaceholderPage(el, title, icon, description) {
       </div>
       <div class="topbar-actions">
         <a href="/" target="_blank" class="topbar-icon-btn" title="View Storefront"><i class="fa fa-arrow-up-right-from-square"></i></a>
+        <button class="topbar-icon-btn theme-toggle-btn" title="Toggle Theme"><i class="fa-solid fa-moon"></i></button>
         <button class="topbar-icon-btn" title="Notifications"><i class="fa fa-bell"></i></button>
       </div>
     </div>
@@ -143,9 +194,14 @@ function renderShell(root, path) {
                   <div class="admin-user-role">ADMINISTRATOR</div>
                 </div>
               </div>
-              <button class="admin-logout-btn" id="logoutBtn" title="Log out">
-                <i class="fa-solid fa-arrow-right-from-bracket"></i>
-              </button>
+              <div style="display:flex; align-items:center; gap:4px;">
+                <button class="topbar-icon-btn theme-toggle-btn" style="width:30px; height:30px; font-size:12px;" title="Toggle Theme">
+                  <i class="fa-solid fa-moon"></i>
+                </button>
+                <button class="admin-logout-btn" id="logoutBtn" title="Log out">
+                  <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                </button>
+              </div>
             </div>
           </div>
         </aside>
@@ -208,7 +264,7 @@ async function renderDashboard(el) {
         </div>
         <div class="topbar-actions">
           <a href="/" target="_blank" class="topbar-icon-btn" title="View Storefront"><i class="fa fa-arrow-up-right-from-square"></i></a>
-          <button class="topbar-icon-btn" title="Theme"><i class="fa-solid fa-moon"></i></button>
+          <button class="topbar-icon-btn theme-toggle-btn" title="Toggle Theme"><i class="fa-solid fa-moon"></i></button>
           <button class="topbar-icon-btn" title="Notifications"><i class="fa-solid fa-bell"></i></button>
         </div>
       </div>
@@ -693,7 +749,7 @@ async function renderDashboard(el) {
 
           <div style="position: relative; min-width: 220px;">
             <i class="fa fa-search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--muted);"></i>
-            <input type="text" id="attSearchInput" placeholder="Filter product, campaign, or ad..." style="width: 100%; padding: 6px 10px 6px 28px; font-size: 12px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border); border-radius: 8px; color: #fff; outline: none; font-family: inherit;">
+            <input type="text" id="attSearchInput" placeholder="Filter product, campaign, or ad..." style="width: 100%; padding: 6px 10px 6px 28px; font-size: 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); outline: none; font-family: inherit;">
           </div>
         </div>
 
@@ -738,6 +794,11 @@ async function renderDashboard(el) {
     if (revChart) revChart.destroy();
     if (statusChart) statusChart.destroy();
 
+    const isDark = window.getAdminTheme() === 'dark';
+    const chartTicksColor = isDark ? '#94a3b8' : '#64748b';
+    const chartLegendColor = isDark ? '#cbd5e1' : '#475569';
+    const chartGridColor = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)';
+
     // Render Chart.js visual charts
     if (window.Chart) {
       // 1. Revenue & Orders Combined Chart
@@ -752,7 +813,7 @@ async function renderDashboard(el) {
                 label: 'Revenue (CFA)',
                 data: revData,
                 borderColor: '#7c3aed',
-                backgroundColor: 'rgba(124, 58, 237, 0.08)',
+                backgroundColor: isDark ? 'rgba(168, 85, 247, 0.15)' : 'rgba(124, 58, 237, 0.08)',
                 fill: true,
                 tension: 0.4,
                 yAxisID: 'y'
@@ -761,7 +822,7 @@ async function renderDashboard(el) {
                 label: 'Total Orders',
                 data: ordData,
                 borderColor: '#3b82f6',
-                backgroundColor: 'rgba(59, 130, 246, 0.25)',
+                backgroundColor: isDark ? 'rgba(59, 130, 246, 0.35)' : 'rgba(59, 130, 246, 0.25)',
                 type: 'bar',
                 borderRadius: 4,
                 yAxisID: 'y1'
@@ -772,12 +833,12 @@ async function renderDashboard(el) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-              legend: { display: true, labels: { color: '#475569', font: { size: 11, family: 'Plus Jakarta Sans, sans-serif', weight: '600' } } }
+              legend: { display: true, labels: { color: chartLegendColor, font: { size: 11, family: 'Plus Jakarta Sans, sans-serif', weight: '600' } } }
             },
             scales: {
-              x: { ticks: { color: '#64748b', font: { size: 11, family: 'Plus Jakarta Sans, sans-serif' } }, grid: { color: 'rgba(0, 0, 0, 0.04)' } },
-              y: { type: 'linear', display: true, position: 'left', ticks: { color: '#64748b', font: { size: 11, family: 'Plus Jakarta Sans, sans-serif' } }, grid: { color: 'rgba(0, 0, 0, 0.04)' } },
-              y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#94a3b8', font: { size: 11, family: 'Plus Jakarta Sans, sans-serif' }, precision: 0 } }
+              x: { ticks: { color: chartTicksColor, font: { size: 11, family: 'Plus Jakarta Sans, sans-serif' } }, grid: { color: chartGridColor } },
+              y: { type: 'linear', display: true, position: 'left', ticks: { color: chartTicksColor, font: { size: 11, family: 'Plus Jakarta Sans, sans-serif' } }, grid: { color: chartGridColor } },
+              y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, ticks: { color: chartTicksColor, font: { size: 11, family: 'Plus Jakarta Sans, sans-serif' }, precision: 0 } }
             }
           }
         });
@@ -800,7 +861,7 @@ async function renderDashboard(el) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-              legend: { position: 'bottom', labels: { color: '#475569', font: { size: 11, family: 'Plus Jakarta Sans, sans-serif', weight: '600' }, padding: 14 } }
+              legend: { position: 'bottom', labels: { color: chartLegendColor, font: { size: 11, family: 'Plus Jakarta Sans, sans-serif', weight: '600' }, padding: 14 } }
             }
           }
         });
@@ -810,6 +871,17 @@ async function renderDashboard(el) {
     // Initialize Attribution Analytics Section
     initAttributionSection();
   };
+
+  // Re-render charts automatically if theme toggles
+  if (window._dashThemeHandler) {
+    window.removeEventListener('adminthemechange', window._dashThemeHandler);
+  }
+  window._dashThemeHandler = () => {
+    if (document.getElementById('revenueChart')) {
+      updateDashboard();
+    }
+  };
+  window.addEventListener('adminthemechange', window._dashThemeHandler);
 
   // Attach Preset Button Handlers
   const presetBtns = el.querySelectorAll('.preset-btn');
@@ -882,7 +954,7 @@ function initAttributionSection() {
         container.innerHTML = `
           <div class="empty-state" style="padding: 44px 20px;">
             <i class="fa fa-bullhorn" style="font-size: 34px; color: var(--muted); margin-bottom: 10px;"></i>
-            <p style="margin: 0; font-weight: 700; color: #fff; font-size: 15px;">No product purchase attribution found</p>
+            <p style="margin: 0; font-weight: 700; color: var(--text); font-size: 15px;">No product purchase attribution found</p>
             <p style="margin: 6px 0 0 0; font-size: 12.5px; color: var(--muted); max-width: 480px; margin-inline: auto; line-height: 1.5;">
               ${currentQuery ? 'No products or campaigns match your search query.' : 'No completed orders recorded in the selected time frame. As customers purchase from your ads with UTM parameters (?utm_campaign=...&utm_content=...), the top campaign and ad for each product will appear here.'}
             </p>
@@ -914,11 +986,11 @@ function initAttributionSection() {
                     <div style="display: flex; align-items: center; gap: 12px;">
                       <img src="${p.image || 'https://placehold.co/42x42'}" alt="" style="width: 42px; height: 42px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border); flex-shrink: 0;" onerror="this.src='https://placehold.co/42x42'">
                       <div style="min-width: 0;">
-                        <strong style="font-size: 13.5px; color: #fff; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px;" title="${p.title}">
+                        <strong style="font-size: 13.5px; color: var(--text); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px;" title="${p.title}">
                           ${p.title}
                         </strong>
                         <div style="display: flex; gap: 6px; align-items: center; margin-top: 3px;">
-                          <span style="font-family: monospace; font-size: 11px; color: var(--muted); background: rgba(255,255,255,0.05); padding: 1px 6px; border-radius: 4px;">
+                          <span style="font-family: monospace; font-size: 11px; color: var(--muted); background: var(--surface2); padding: 1px 6px; border-radius: 4px;">
                             ${p.code || 'N/A'}
                           </span>
                           <span style="font-size: 11px; color: var(--green); font-weight: 600;">
@@ -936,13 +1008,13 @@ function initAttributionSection() {
                             <i class="fa ${topCamp.isTracked ? 'fa-bullseye' : 'fa-globe'}"></i>
                             <span>${topCamp.name}</span>
                           </span>
-                          ${otherCamps > 0 ? `<span style="font-size: 10px; color: var(--muted); background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 6px;" title="${otherCamps} other campaign(s) drove purchases">+${otherCamps} more</span>` : ''}
+                          ${otherCamps > 0 ? `<span style="font-size: 10px; color: var(--muted); background: var(--surface2); padding: 2px 6px; border-radius: 6px;" title="${otherCamps} other campaign(s) drove purchases">+${otherCamps} more</span>` : ''}
                         </div>
                         <div style="font-size: 11.5px; color: var(--muted); display: flex; gap: 6px; align-items: center;">
                           <strong style="color: var(--green); font-weight: 700;">${topCamp.purchases} purchase${topCamp.purchases > 1 ? 's' : ''}</strong>
                           <span style="color: var(--muted2);">(${campPct}% share)</span>
                           <span style="color: var(--muted2);">·</span>
-                          <span style="color: #cbd5e1; font-weight: 600;">${fmtPrice(topCamp.revenue)} CFA</span>
+                          <span style="color: var(--text); font-weight: 600;">${fmtPrice(topCamp.revenue)} CFA</span>
                         </div>
                       </div>
                     ` : `<span style="color: var(--muted); font-size: 12px;">No campaign data</span>`}
@@ -955,19 +1027,19 @@ function initAttributionSection() {
                             <i class="fa ${topAd.isTracked ? 'fa-rectangle-ad' : 'fa-tag'}"></i>
                             <span>${topAd.name}</span>
                           </span>
-                          ${otherAds > 0 ? `<span style="font-size: 10px; color: var(--muted); background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 6px;" title="${otherAds} other ad(s) drove purchases">+${otherAds} more</span>` : ''}
+                          ${otherAds > 0 ? `<span style="font-size: 10px; color: var(--muted); background: var(--surface2); padding: 2px 6px; border-radius: 6px;" title="${otherAds} other ad(s) drove purchases">+${otherAds} more</span>` : ''}
                         </div>
                         <div style="font-size: 11.5px; color: var(--muted); display: flex; gap: 6px; align-items: center;">
                           <strong style="color: #f472b6; font-weight: 700;">${topAd.purchases} purchase${topAd.purchases > 1 ? 's' : ''}</strong>
                           <span style="color: var(--muted2);">·</span>
-                          <span style="color: #cbd5e1; font-weight: 600;">${fmtPrice(topAd.revenue)} CFA</span>
+                          <span style="color: var(--text); font-weight: 600;">${fmtPrice(topAd.revenue)} CFA</span>
                         </div>
                       </div>
                     ` : `<span style="color: var(--muted); font-size: 12px;">No ad tracked</span>`}
                   </td>
                   <td style="text-align: right;">
                     <div>
-                      <strong style="font-size: 13.5px; color: #fff;">${fmtPrice(p.totalRevenue)} CFA</strong>
+                      <strong style="font-size: 13.5px; color: var(--text);">${fmtPrice(p.totalRevenue)} CFA</strong>
                       <div style="margin-top: 5px;">
                         <button class="btn btn-ghost btn-sm" onclick="window._showAttributionBreakdown('${encodeURIComponent(p.title)}')" style="padding: 4px 10px; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;" title="View all campaigns and ads for this product">
                           <i class="fa fa-chart-pie" style="color: var(--accent);"></i> Breakdown
@@ -991,7 +1063,7 @@ function initAttributionSection() {
         container.innerHTML = `
           <div class="empty-state" style="padding: 44px 20px;">
             <i class="fa fa-bullseye" style="font-size: 34px; color: var(--muted); margin-bottom: 10px;"></i>
-            <p style="margin: 0; font-weight: 700; color: #fff; font-size: 15px;">No campaigns found</p>
+            <p style="margin: 0; font-weight: 700; color: var(--text); font-size: 15px;">No campaigns found</p>
             <p style="margin: 6px 0 0 0; font-size: 12.5px; color: var(--muted);">No campaigns recorded for this period.</p>
           </div>`;
         return;
@@ -1045,7 +1117,7 @@ function initAttributionSection() {
         container.innerHTML = `
           <div class="empty-state" style="padding: 44px 20px;">
             <i class="fa fa-rectangle-ad" style="font-size: 34px; color: var(--muted); margin-bottom: 10px;"></i>
-            <p style="margin: 0; font-weight: 700; color: #fff; font-size: 15px;">No ad creatives found</p>
+            <p style="margin: 0; font-weight: 700; color: var(--text); font-size: 15px;">No ad creatives found</p>
             <p style="margin: 6px 0 0 0; font-size: 12.5px; color: var(--muted);">No ad creatives recorded for this period.</p>
           </div>`;
         return;
@@ -1128,13 +1200,13 @@ window._showAttributionBreakdown = function(encodedTitle) {
   modal.className = 'modal-overlay open';
   modal.innerHTML = `
     <div class="modal-box" style="max-width: 860px; width: 95%;">
-      <div class="modal-head" style="background: rgba(255,255,255,0.02); padding: 20px 28px;">
+      <div class="modal-head" style="padding: 20px 28px;">
         <div style="display: flex; align-items: center; gap: 14px;">
           <img src="${data.image || 'https://placehold.co/48x48'}" alt="" style="width: 48px; height: 48px; border-radius: 10px; object-fit: cover; border: 1px solid var(--border);" onerror="this.src='https://placehold.co/48x48'">
           <div>
             <div style="display:flex; align-items:center; gap:8px;">
-              <h2 style="font-size: 17px; font-weight: 700; margin: 0; color: #fff;">${data.title}</h2>
-              <span style="font-family: monospace; background: rgba(255,255,255,0.06); padding: 2px 7px; border-radius: 6px; font-size: 11.5px; color: var(--muted);">${data.code || 'N/A'}</span>
+              <h2 style="font-size: 17px; font-weight: 700; margin: 0; color: var(--text);">${data.title}</h2>
+              <span style="font-family: monospace; background: var(--surface3); padding: 2px 7px; border-radius: 6px; font-size: 11.5px; color: var(--text-secondary);">${data.code || 'N/A'}</span>
             </div>
             <p style="font-size: 12px; color: var(--muted); margin: 4px 0 0 0;">
               Marketing Attribution Breakdown: All campaigns and ad creatives driving purchases for this product.
@@ -1144,7 +1216,7 @@ window._showAttributionBreakdown = function(encodedTitle) {
         <button class="modal-close" id="closeAttBreakdownModal" style="font-size: 24px; padding: 4px 8px;">&times;</button>
       </div>
 
-      <div style="padding: 14px 28px; background: rgba(255,255,255,0.015); border-bottom: 1px solid var(--border); display: flex; gap: 16px; flex-wrap: wrap;">
+      <div style="padding: 14px 28px; background: var(--surface2); border-bottom: 1px solid var(--border); display: flex; gap: 16px; flex-wrap: wrap;">
         <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); padding: 6px 14px; border-radius: 8px;">
           <div style="font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: 700;">Total Purchases</div>
           <div style="font-size: 16px; font-weight: 800; color: var(--green);">${data.totalPurchases} orders</div>
@@ -1172,7 +1244,7 @@ window._showAttributionBreakdown = function(encodedTitle) {
             </h3>
             <small style="color: var(--muted);">Ranked by purchases</small>
           </div>
-          <table class="admin-table" style="background: rgba(255,255,255,0.015); border-radius: 10px;">
+          <table class="admin-table" style="background: var(--surface2); border-radius: 10px;">
             <thead>
               <tr>
                 <th>Campaign</th>
@@ -1213,7 +1285,7 @@ window._showAttributionBreakdown = function(encodedTitle) {
             </h3>
             <small style="color: var(--muted);">Ranked by purchases</small>
           </div>
-          <table class="admin-table" style="background: rgba(255,255,255,0.015); border-radius: 10px;">
+          <table class="admin-table" style="background: var(--surface2); border-radius: 10px;">
             <thead>
               <tr>
                 <th>Ad / Creative</th>
@@ -1247,7 +1319,7 @@ window._showAttributionBreakdown = function(encodedTitle) {
         </div>
       </div>
 
-      <div class="modal-footer" style="padding: 16px 28px; background: rgba(255,255,255,0.015);">
+      <div class="modal-footer" style="padding: 16px 28px;">
         <button class="btn btn-ghost" id="closeAttBreakdownBtn" type="button">Close</button>
       </div>
     </div>
@@ -1313,11 +1385,11 @@ function showProductOrdersModal(product, productOrders) {
   modal.className = 'modal-overlay open';
   modal.innerHTML = `
     <div class="modal-box" style="max-width: 920px; width: 95%;">
-      <div class="modal-head" style="background: rgba(255,255,255,0.02); padding: 20px 28px;">
+      <div class="modal-head" style="padding: 20px 28px;">
         <div style="display: flex; align-items: center; gap: 14px;">
           <img src="${product.featuredImage}" alt="${product.title}" style="width: 48px; height: 48px; border-radius: 10px; object-fit: cover; border: 1px solid var(--border);" onerror="this.src='https://placehold.co/48x48'">
           <div>
-            <h2 style="font-size: 16px; font-weight: 700; margin: 0 0 4px 0; color: #fff;">${product.title}</h2>
+            <h2 style="font-size: 16px; font-weight: 700; margin: 0 0 4px 0; color: var(--text);">${product.title}</h2>
             <div style="display: flex; gap: 12px; align-items: center; font-size: 12px; color: var(--muted);">
               <span><i class="fa fa-barcode"></i> Code: <code>${product.code || 'N/A'}</code></span>
               <span><i class="fa fa-tag"></i> ${fmtPrice(product.price)} ${product.currency}</span>
@@ -1327,7 +1399,7 @@ function showProductOrdersModal(product, productOrders) {
         <button class="modal-close" id="closeProductOrdersModal" style="font-size: 24px; padding: 4px 8px;">&times;</button>
       </div>
 
-      <div style="padding: 16px 28px; background: rgba(255,255,255,0.015); border-bottom: 1px solid var(--border); display: flex; gap: 16px; flex-wrap: wrap; align-items: center; justify-content: space-between;">
+      <div style="padding: 16px 28px; background: var(--surface2); border-bottom: 1px solid var(--border); display: flex; gap: 16px; flex-wrap: wrap; align-items: center; justify-content: space-between;">
         <div style="display: flex; gap: 16px; flex-wrap: wrap;">
           <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); padding: 8px 16px; border-radius: 10px;">
             <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 700;">Total Orders</div>
@@ -1350,15 +1422,15 @@ function showProductOrdersModal(product, productOrders) {
         <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
           ${topCampEntry ? `
             <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); padding: 6px 12px; border-radius: 8px;">
-              <div style="font-size: 10px; color: #a5b4fc; text-transform: uppercase; font-weight: 700;"><i class="fa fa-bullseye"></i> Top Campaign</div>
-              <div style="font-size: 12px; font-weight: 700; color: #fff; max-width: 140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${topCampEntry[0]}">${topCampEntry[0]}</div>
+              <div style="font-size: 10px; color: var(--accent); text-transform: uppercase; font-weight: 700;"><i class="fa fa-bullseye"></i> Top Campaign</div>
+              <div style="font-size: 12px; font-weight: 700; color: var(--text); max-width: 140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${topCampEntry[0]}">${topCampEntry[0]}</div>
               <div style="font-size: 10.5px; color: var(--green); font-weight: 600;">${topCampEntry[1]} purchases</div>
             </div>
           ` : ''}
           ${topAdEntry ? `
             <div style="background: rgba(236, 72, 153, 0.08); border: 1px solid rgba(236, 72, 153, 0.25); padding: 6px 12px; border-radius: 8px;">
               <div style="font-size: 10px; color: #f472b6; text-transform: uppercase; font-weight: 700;"><i class="fa fa-rectangle-ad"></i> Top Ad</div>
-              <div style="font-size: 12px; font-weight: 700; color: #fff; max-width: 140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${topAdEntry[0]}">${topAdEntry[0]}</div>
+              <div style="font-size: 12px; font-weight: 700; color: var(--text); max-width: 140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${topAdEntry[0]}">${topAdEntry[0]}</div>
               <div style="font-size: 10.5px; color: #f472b6; font-weight: 600;">${topAdEntry[1]} purchases</div>
             </div>
           ` : ''}
@@ -1406,7 +1478,7 @@ function showProductOrdersModal(product, productOrders) {
           </div>
         `}
       </div>
-      <div class="modal-footer" style="padding: 16px 28px; background: rgba(255,255,255,0.015);">
+      <div class="modal-footer" style="padding: 16px 28px;">
         <button class="btn btn-ghost" id="closeProductOrdersModalBtn"><i class="fa fa-xmark"></i> Close</button>
       </div>
     </div>
@@ -1429,6 +1501,7 @@ async function renderProducts(el) {
       <p style="font-size:13px; color:var(--muted); margin:0;">Manage store inventory, catalog items, pricing, and stock levels.</p>
     </div>
     <div class="topbar-actions">
+      <button class="topbar-icon-btn theme-toggle-btn" title="Toggle Theme"><i class="fa-solid fa-moon"></i></button>
       <button class="btn btn-primary" id="addBtn"><i class="fa-solid fa-plus"></i> Add Product</button>
     </div>
   </div>
@@ -1680,6 +1753,7 @@ async function renderOrders(el) {
       <select class="filter-select" id="statusFilter"><option value="">All Status</option><option value="COMPLETED">COMPLETED</option><option value="ABANDONED">ABANDONED</option></select>
       <div class="search-wrap"><i class="fa fa-search"></i><input class="search-input" id="oSearch" placeholder="Search name, product…"></div>
       <button class="btn btn-ghost btn-sm" id="exportCsv"><i class="fa fa-download"></i>CSV</button>
+      <button class="topbar-icon-btn theme-toggle-btn" title="Toggle Theme"><i class="fa-solid fa-moon"></i></button>
     </div>
   </div>
   <div class="table-card">
@@ -2138,7 +2212,7 @@ async function renderSettings(el) {
       </div>
       <div class="topbar-actions">
         <button class="topbar-icon-btn" title="Language"><i class="fa-solid fa-globe"></i></button>
-        <button class="topbar-icon-btn" title="Theme"><i class="fa-solid fa-moon"></i></button>
+        <button class="topbar-icon-btn theme-toggle-btn" title="Toggle Theme"><i class="fa-solid fa-moon"></i></button>
         <button class="topbar-icon-btn" title="Notifications"><i class="fa-solid fa-bell"></i></button>
         <button class="settings-save-btn" id="topSettingsSaveBtn" style="margin-top:0; padding:8px 22px;">
           <i class="fa-solid fa-floppy-disk"></i> Save Changes
@@ -2196,14 +2270,9 @@ async function renderSettings(el) {
 
 window._showOrderDetail = async function(orderId) {
   try {
-    let orders = window._cachedOrders || [];
-    if (!orders.length) {
-      orders = await api.getOrders();
-      window._cachedOrders = orders;
-    }
-    let order = orders.find(o => String(o.order_id) === String(orderId) || String(o.id) === String(orderId));
+    let order = window._cachedOrders?.find(o => String(o.order_id) === String(orderId) || String(o.id) === String(orderId));
     if (!order) {
-      orders = await api.getOrders();
+      const orders = await api.getOrders();
       window._cachedOrders = orders;
       order = orders.find(o => String(o.order_id) === String(orderId) || String(o.id) === String(orderId));
     }
@@ -2229,12 +2298,12 @@ function showOrderDetailModal(order) {
   modal.className = 'modal-overlay open';
   modal.innerHTML = `
     <div class="modal-box" style="max-width: 650px; width: 95%;">
-      <div class="modal-head" style="background: rgba(255,255,255,0.02); padding: 20px 28px;">
+      <div class="modal-head" style="padding: 20px 28px;">
         <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
           <div>
             <div style="display: flex; gap: 10px; align-items: center;">
-              <h2 style="font-size: 17px; font-weight: 700; margin: 0; color: #fff;">Order Information</h2>
-              <span style="font-family: monospace; background: rgba(255,255,255,0.08); padding: 2px 8px; border-radius: 6px; font-size: 12px; color: var(--muted);">${order.order_id || 'N/A'}</span>
+              <h2 style="font-size: 17px; font-weight: 700; margin: 0; color: var(--text);">Order Information</h2>
+              <span style="font-family: monospace; background: var(--surface3); padding: 2px 8px; border-radius: 6px; font-size: 12px; color: var(--text-secondary);">${order.order_id || 'N/A'}</span>
             </div>
             <p style="font-size: 12px; color: var(--muted); margin: 4px 0 0 0;"><i class="fa fa-calendar-alt"></i> Placed on ${fmtDate(order.date || order.savedAt)}</p>
           </div>
@@ -2244,7 +2313,7 @@ function showOrderDetailModal(order) {
 
       <div class="modal-body" style="padding: 24px 28px; max-height: 70vh; overflow-y: auto;">
         <!-- Status & Direct Quick Actions -->
-        <div style="display: flex; gap: 14px; align-items: center; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; margin-bottom: 20px; flex-wrap: wrap; justify-content: space-between;">
+        <div style="display: flex; gap: 14px; align-items: center; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; margin-bottom: 20px; flex-wrap: wrap; justify-content: space-between;">
           <div style="display: flex; align-items: center; gap: 10px;">
             <span style="font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--muted);">Status:</span>
             ${statusBadge(order.status)}
@@ -2264,20 +2333,20 @@ function showOrderDetailModal(order) {
 
         <div style="display: flex; flex-direction: column; gap: 20px;">
           <!-- Customer Info Card -->
-          <div style="background: rgba(255,255,255,0.015); border: 1px solid var(--border); border-radius: 12px; padding: 18px;">
+          <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 18px;">
             <h3 style="font-size: 13px; text-transform: uppercase; font-weight: 700; color: var(--accent); margin: 0 0 14px 0; letter-spacing: 0.05em;"><i class="fa fa-user" style="margin-right: 6px;"></i> Customer Details</h3>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px;">
               <div>
                 <div style="font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase;">Full Name</div>
-                <div style="font-size: 14px; font-weight: 700; color: #fff; margin-top: 2px;">${order.nom || '—'}</div>
+                <div style="font-size: 14px; font-weight: 700; color: var(--text); margin-top: 2px;">${order.nom || '—'}</div>
               </div>
               <div>
                 <div style="font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase;">Phone Number</div>
-                <div style="font-size: 14px; font-weight: 700; color: #fff; margin-top: 2px;">${order.telephone || '—'}</div>
+                <div style="font-size: 14px; font-weight: 700; color: var(--text); margin-top: 2px;">${order.telephone || '—'}</div>
               </div>
               <div>
                 <div style="font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase;">Country</div>
-                <div style="font-size: 14px; font-weight: 700; color: #fff; margin-top: 2px;">${COUNTRY_MAP[order.pays] || order.pays || '—'}</div>
+                <div style="font-size: 14px; font-weight: 700; color: var(--text); margin-top: 2px;">${COUNTRY_MAP[order.pays] || order.pays || '—'}</div>
               </div>
               <div>
                 <div style="font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase;">Address / City</div>
@@ -2287,12 +2356,12 @@ function showOrderDetailModal(order) {
           </div>
 
           <!-- Order Specs Card -->
-          <div style="background: rgba(255,255,255,0.015); border: 1px solid var(--border); border-radius: 12px; padding: 18px;">
+          <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 18px;">
             <h3 style="font-size: 13px; text-transform: uppercase; font-weight: 700; color: var(--accent); margin: 0 0 14px 0; letter-spacing: 0.05em;"><i class="fa fa-box" style="margin-right: 6px;"></i> Order Items</h3>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px;">
               <div style="grid-column: 1 / -1;">
                 <div style="font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase;">Product Name</div>
-                <div style="font-size: 15px; font-weight: 700; color: #fff; margin-top: 2px;">${order.produit || '—'}</div>
+                <div style="font-size: 15px; font-weight: 700; color: var(--text); margin-top: 2px;">${order.produit || '—'}</div>
               </div>
               <div>
                 <div style="font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase;">Product Code</div>
@@ -2300,7 +2369,7 @@ function showOrderDetailModal(order) {
               </div>
               <div>
                 <div style="font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase;">Quantity</div>
-                <div style="font-size: 14px; font-weight: 700; color: #fff; margin-top: 2px;">${order.quantity || 1} item(s)</div>
+                <div style="font-size: 14px; font-weight: 700; color: var(--text); margin-top: 2px;">${order.quantity || 1} item(s)</div>
               </div>
               <div>
                 <div style="font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase;">Total Amount</div>
@@ -2310,16 +2379,16 @@ function showOrderDetailModal(order) {
           </div>
 
           ${(order.couleur || order.taille || order.utm_source || order.utm_campaign || order.utm_content || order.utm_medium || order.utm_term) ? `
-            <div style="background: rgba(255,255,255,0.015); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px;">
+            <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px;">
               <h3 style="font-size: 12px; text-transform: uppercase; font-weight: 700; color: var(--accent); margin: 0 0 10px 0;"><i class="fa fa-bullhorn" style="margin-right: 6px;"></i> Marketing & Attribution Tracking</h3>
               <div style="font-size: 12px; color: var(--muted); display: flex; gap: 16px; flex-wrap: wrap; align-items: center;">
-                ${order.couleur ? `<span>Color: <strong>${order.couleur}</strong></span>` : ''}
-                ${order.taille ? `<span>Size: <strong>${order.taille}</strong></span>` : ''}
-                ${order.utm_source ? `<span>Source: <code style="color:var(--blue);">${order.utm_source}</code></span>` : ''}
-                ${order.utm_campaign ? `<span>Campaign: <code style="color:#a5b4fc; font-weight:700;">${order.utm_campaign}</code></span>` : ''}
-                ${order.utm_content ? `<span>Ad Creative: <code style="color:#f472b6; font-weight:700;">${order.utm_content}</code></span>` : ''}
-                ${order.utm_medium ? `<span>Medium: <code>${order.utm_medium}</code></span>` : ''}
-                ${order.utm_term ? `<span>Term: <code>${order.utm_term}</code></span>` : ''}
+                ${order.couleur ? `<span>Color: <strong style="color:var(--text);">${order.couleur}</strong></span>` : ''}
+                ${order.taille ? `<span>Size: <strong style="color:var(--text);">${order.taille}</strong></span>` : ''}
+                ${order.utm_source ? `<span>Source: <code style="color:var(--blue); font-weight:700;">${order.utm_source}</code></span>` : ''}
+                ${order.utm_campaign ? `<span>Campaign: <code style="color:var(--accent); font-weight:700;">${order.utm_campaign}</code></span>` : ''}
+                ${order.utm_content ? `<span>Ad Creative: <code style="color:#db2777; font-weight:700;">${order.utm_content}</code></span>` : ''}
+                ${order.utm_medium ? `<span>Medium: <code style="color:var(--text-secondary);">${order.utm_medium}</code></span>` : ''}
+                ${order.utm_term ? `<span>Term: <code style="color:var(--text-secondary);">${order.utm_term}</code></span>` : ''}
               </div>
             </div>
           ` : ''}
