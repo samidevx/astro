@@ -81,14 +81,14 @@ export function statusBadge(status) {
 export function confirmDialog(msg) {
   return new Promise(resolve => {
     const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);z-index:2000;display:flex;align-items:center;justify-content:center;padding:24px;';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.45);backdrop-filter:blur(6px);z-index:2000;display:flex;align-items:center;justify-content:center;padding:24px;';
     overlay.innerHTML = `
-      <div style="background:#111827;border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:32px;max-width:380px;width:100%;text-align:center;">
-        <i class="fa fa-triangle-exclamation" style="font-size:32px;color:#f59e0b;margin-bottom:16px;display:block;"></i>
-        <p style="font-size:15px;margin-bottom:24px;color:#f1f5f9;">${msg}</p>
+      <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:20px;padding:32px;max-width:380px;width:100%;text-align:center;box-shadow:0 20px 40px -10px rgba(0,0,0,0.12);">
+        <i class="fa fa-triangle-exclamation" style="font-size:36px;color:#f59e0b;margin-bottom:16px;display:block;"></i>
+        <p style="font-size:15px;margin-bottom:24px;color:#0f172a;font-weight:600;line-height:1.5;">${msg}</p>
         <div style="display:flex;gap:10px;justify-content:center;">
-          <button id="cd-cancel" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.07);color:#f1f5f9;border-radius:9px;padding:10px 20px;cursor:pointer;font-size:14px;font-family:inherit;">Cancel</button>
-          <button id="cd-ok" style="background:#ef4444;border:none;color:#fff;border-radius:9px;padding:10px 20px;cursor:pointer;font-size:14px;font-weight:700;font-family:inherit;">Delete</button>
+          <button id="cd-cancel" style="background:#f1f5f9;border:1px solid #e2e8f0;color:#475569;border-radius:10px;padding:10px 20px;cursor:pointer;font-size:14px;font-weight:600;font-family:inherit;">Cancel</button>
+          <button id="cd-ok" style="background:#ef4444;border:none;color:#fff;border-radius:10px;padding:10px 20px;cursor:pointer;font-size:14px;font-weight:700;font-family:inherit;box-shadow:0 4px 12px rgba(239,68,68,0.3);">Delete</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);

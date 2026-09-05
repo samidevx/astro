@@ -1,4 +1,9 @@
 {
+  "storeName": "Astro Shop",
   "facebookPixelId": "950990427685437",
-  "facebookPixelEnabled": true
+  "facebookPixelEnabled": true,
+  "primaryColor": "#ff00c8",
+  "accentColor": "#8002bb",
+  "backgroundColor": "#f8f8f8",
+  "fontFamily": "Cairo, sans-serif"
 }

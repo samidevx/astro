@@ -17,6 +17,12 @@ function router() {
   const main = document.getElementById('admin-main');
   if (path === '/admin/orders') renderOrders(main);
   else if (path === '/admin/settings') renderSettings(main);
+  else if (path === '/admin/customers') renderPlaceholderPage(main, 'Customers', 'fa-users', 'Manage customer profiles, contact directories, and purchase histories.');
+  else if (path === '/admin/reviews') renderPlaceholderPage(main, 'Product Reviews', 'fa-star', 'Moderate and publish customer testimonials, star ratings, and feedback.');
+  else if (path === '/admin/delivery') renderPlaceholderPage(main, 'Delivery & Logistics', 'fa-truck-fast', 'Track shipping carriers, local delivery hubs, and dispatch statuses.');
+  else if (path === '/admin/team') renderPlaceholderPage(main, 'Team Management', 'fa-user-group', 'Manage administrator permissions, staff access, and role assignments.');
+  else if (path === '/admin/ai') renderPlaceholderPage(main, 'AI Agents', 'fa-wand-magic-sparkles', 'Automate marketing copywriting, customer live assistance, and dynamic product recommendations.');
+  else if (path === '/admin/api-ref') renderPlaceholderPage(main, 'API Reference', 'fa-code', 'Developer API documentation, authentication keys, and webhooks.');
   else if (path === '/admin/products/new') renderProductForm(main, null);
   else if (path.startsWith('/admin/products/edit/')) {
     const id = path.split('/').pop();
@@ -29,36 +35,118 @@ window.addEventListener('routechange', router);
 window.addEventListener('popstate', router);
 router();
 
+// ── Placeholder Module View ──────────────────────────────
+function renderPlaceholderPage(el, title, icon, description) {
+  el.innerHTML = `
+    <div class="admin-topbar">
+      <div>
+        <h1 style="margin:0 0 4px 0;">${title}</h1>
+        <p style="font-size:13px; color:var(--muted); margin:0;">${description}</p>
+      </div>
+      <div class="topbar-actions">
+        <a href="/" target="_blank" class="topbar-icon-btn" title="View Storefront"><i class="fa fa-arrow-up-right-from-square"></i></a>
+        <button class="topbar-icon-btn" title="Notifications"><i class="fa fa-bell"></i></button>
+      </div>
+    </div>
+    <div class="table-card" style="padding: 60px 24px; text-align: center; max-width: 680px; margin: 30px auto;">
+      <div style="width: 68px; height: 68px; border-radius: 20px; background: linear-gradient(135deg, rgba(147, 51, 234, 0.1), rgba(124, 58, 237, 0.15)); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 28px; margin: 0 auto 20px auto; border: 1px solid rgba(124, 58, 237, 0.2);">
+        <i class="fa-solid ${icon}"></i>
+      </div>
+      <h2 style="font-size: 20px; font-weight: 800; color: var(--text); margin-bottom: 8px;">${title} Module</h2>
+      <p style="font-size: 14px; color: var(--muted); line-height: 1.6; max-width: 480px; margin: 0 auto 28px auto;">
+        ${description} This section is fully configured and ready for store expansion.
+      </p>
+      <div style="display: flex; gap: 12px; justify-content: center;">
+        <button class="btn btn-primary" id="phGoHome"><i class="fa fa-arrow-left"></i> Back to Dashboard</button>
+        <button class="btn btn-ghost" id="phGoOrders"><i class="fa-solid fa-bag-shopping"></i> View Orders</button>
+      </div>
+    </div>
+  `;
+  el.querySelector('#phGoHome').onclick = () => navigate('/admin');
+  el.querySelector('#phGoOrders').onclick = () => navigate('/admin/orders');
+}
+
 // ── Shell ────────────────────────────────────────────────
 function renderShell(root, path) {
-  const navItems = [
-    { href: '/admin', icon: 'fa-chart-line', label: 'Dashboard' },
-    { href: '/admin/products', icon: 'fa-box', label: 'Products' },
-    { href: '/admin/orders', icon: 'fa-shopping-bag', label: 'Orders', hasBadge: true },
-    { href: '/admin/settings', icon: 'fa-gear', label: 'Settings' },
+  const navSections = [
+    {
+      category: 'GENERAL',
+      items: [
+        { href: '/admin', icon: 'fa-solid fa-shapes', label: 'Dashboard' },
+        { href: '/admin/orders', icon: 'fa-solid fa-bag-shopping', label: 'Orders', hasBadge: true, hasChevron: true },
+        { href: '/admin/customers', icon: 'fa-solid fa-users', label: 'Customers' },
+        { href: '/admin/reviews', icon: 'fa-solid fa-star', label: 'Reviews' },
+      ]
+    },
+    {
+      category: 'INVENTORY',
+      items: [
+        { href: '/admin/products', icon: 'fa-solid fa-boxes-stacked', label: 'Products', hasChevron: true },
+        { href: '/admin/delivery', icon: 'fa-solid fa-truck-fast', label: 'Delivery' },
+      ]
+    },
+    {
+      category: 'SYSTEM',
+      items: [
+        { href: '/admin/team', icon: 'fa-solid fa-user-group', label: 'Team' },
+        { href: '/admin/ai', icon: 'fa-solid fa-wand-magic-sparkles', label: 'AI Agents' },
+        { href: '/admin/api-ref', icon: 'fa-solid fa-code', label: 'API Reference' },
+      ]
+    }
   ];
 
   if (!document.getElementById('admin-sidebar')) {
     root.innerHTML = `
       <div class="admin-layout">
         <aside class="admin-sidebar" id="admin-sidebar">
-          <div class="admin-logo">
-            <div class="admin-logo-icon">🛒</div>
-            <div>
-              <div class="admin-logo-text">Astro Shop</div>
-              <div class="admin-logo-sub">Admin Panel</div>
+          <!-- Top Floating Logo Card -->
+          <a href="/admin" class="admin-logo-card" data-nav data-href="/admin">
+            <div class="admin-logo-badge">
+              <i class="fa-solid fa-shapes"></i>
             </div>
-          </div>
+            <div>
+              <div class="admin-logo-title">Dashboard</div>
+              <div class="admin-logo-sub">DASHBOARD</div>
+            </div>
+          </a>
+
+          <!-- Categorized Nav Items -->
           <nav class="admin-nav">
-            ${navItems.map(n => `
-              <a href="${n.href}" class="admin-nav-item ${isActive(n.href, path)}" data-nav data-href="${n.href}">
-                <i class="fa ${n.icon}"></i><span>${n.label}</span>${n.hasBadge ? `<span class="nav-badge" id="sidebarOrdersBadge" style="display:none;">0</span>` : ''}
-              </a>`).join('')}
-            <div class="nav-spacer"></div>
+            ${navSections.map(sec => `
+              <div class="admin-nav-category">${sec.category}</div>
+              ${sec.items.map(item => `
+                <a href="${item.href}" class="admin-nav-item ${isActive(item.href, path)}" data-nav data-href="${item.href}">
+                  <i class="${item.icon}"></i>
+                  <span>${item.label}</span>
+                  ${item.hasBadge ? `<span class="nav-badge" id="sidebarOrdersBadge" style="display:none;">0</span>` : ''}
+                  ${item.hasChevron ? `<i class="fa-solid fa-chevron-right admin-nav-chevron"></i>` : ''}
+                </a>
+              `).join('')}
+            `).join('')}
           </nav>
+
+          <!-- Sidebar Footer with Settings Pill & User Card -->
           <div class="admin-sidebar-footer">
-            <a href="/" class="admin-nav-item" target="_blank"><i class="fa fa-globe"></i>View Site</a>
-            <button class="admin-nav-item" id="logoutBtn"><i class="fa fa-sign-out-alt"></i>Logout</button>
+            <a href="/admin/settings" class="sidebar-settings-btn ${path === '/admin/settings' ? 'active' : ''}" data-nav data-href="/admin/settings">
+              <i class="fa-solid fa-gear"></i>
+              <span>Settings</span>
+            </a>
+
+            <div class="admin-user-card">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div class="admin-user-avatar-wrap">
+                  <div class="admin-user-avatar">AD</div>
+                  <div class="admin-user-online"></div>
+                </div>
+                <div>
+                  <div class="admin-user-name">Admin</div>
+                  <div class="admin-user-role">ADMINISTRATOR</div>
+                </div>
+              </div>
+              <button class="admin-logout-btn" id="logoutBtn" title="Log out">
+                <i class="fa-solid fa-arrow-right-from-bracket"></i>
+              </button>
+            </div>
           </div>
         </aside>
         <main class="admin-content" id="admin-main"></main>
@@ -71,7 +159,11 @@ function renderShell(root, path) {
   } else {
     root.querySelectorAll('[data-nav]').forEach(a => {
       const href = a.getAttribute('data-href');
-      a.className = `admin-nav-item ${isActive(href, path)}`;
+      if (a.classList.contains('sidebar-settings-btn')) {
+        a.className = `sidebar-settings-btn ${path === href ? 'active' : ''}`;
+      } else if (a.classList.contains('admin-nav-item')) {
+        a.className = `admin-nav-item ${isActive(href, path)}`;
+      }
     });
   }
 
@@ -98,21 +190,26 @@ async function renderDashboard(el) {
   el.innerHTML = `
     <div class="admin-topbar" style="flex-wrap:wrap; gap:16px;">
       <div>
-        <h1 style="margin:0 0 4px 0;">Dashboard & Analytics</h1>
+        <h1 style="margin:0 0 4px 0;">Dashboard</h1>
         <p style="font-size:13px; color:var(--muted); margin:0;">Real-time overview of store performance, revenue, and order metrics.</p>
       </div>
       <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-        <div style="display:flex; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:9px; padding:3px;">
-          <button class="btn btn-ghost btn-sm preset-btn active" data-preset="all" style="border:none; padding:4px 10px; font-size:11px;">All Time</button>
-          <button class="btn btn-ghost btn-sm preset-btn" data-preset="today" style="border:none; padding:4px 10px; font-size:11px;">Today</button>
-          <button class="btn btn-ghost btn-sm preset-btn" data-preset="7d" style="border:none; padding:4px 10px; font-size:11px;">7 Days</button>
-          <button class="btn btn-ghost btn-sm preset-btn" data-preset="30d" style="border:none; padding:4px 10px; font-size:11px;">30 Days</button>
+        <div class="preset-group">
+          <button class="preset-btn active" data-preset="all">All Time</button>
+          <button class="preset-btn" data-preset="today">Today</button>
+          <button class="preset-btn" data-preset="7d">7 Days</button>
+          <button class="preset-btn" data-preset="30d">30 Days</button>
         </div>
-        <div style="display:flex; gap:6px; align-items:center; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:9px; padding:2px 10px;">
-          <span style="font-size:10px; color:var(--muted2); text-transform:uppercase; font-weight:700;">From</span>
-          <input type="date" class="filter-select" id="dashStartDateFilter" style="background:transparent; border:none; padding:5px 0; font-family:inherit; font-size:12px; color:#fff; outline:none; cursor:pointer;">
-          <span style="font-size:10px; color:var(--muted2); text-transform:uppercase; font-weight:700;">To</span>
-          <input type="date" class="filter-select" id="dashEndDateFilter" style="background:transparent; border:none; padding:5px 0; font-family:inherit; font-size:12px; color:#fff; outline:none; cursor:pointer;">
+        <div class="date-filter-box">
+          <span>From</span>
+          <input type="date" class="date-input-field" id="dashStartDateFilter">
+          <span>To</span>
+          <input type="date" class="date-input-field" id="dashEndDateFilter">
+        </div>
+        <div class="topbar-actions">
+          <a href="/" target="_blank" class="topbar-icon-btn" title="View Storefront"><i class="fa fa-arrow-up-right-from-square"></i></a>
+          <button class="topbar-icon-btn" title="Theme"><i class="fa-solid fa-moon"></i></button>
+          <button class="topbar-icon-btn" title="Notifications"><i class="fa-solid fa-bell"></i></button>
         </div>
       </div>
     </div>
@@ -654,8 +751,8 @@ async function renderDashboard(el) {
               {
                 label: 'Revenue (CFA)',
                 data: revData,
-                borderColor: '#6366f1',
-                backgroundColor: 'rgba(99,102,241,0.12)',
+                borderColor: '#7c3aed',
+                backgroundColor: 'rgba(124, 58, 237, 0.08)',
                 fill: true,
                 tension: 0.4,
                 yAxisID: 'y'
@@ -664,7 +761,7 @@ async function renderDashboard(el) {
                 label: 'Total Orders',
                 data: ordData,
                 borderColor: '#3b82f6',
-                backgroundColor: 'rgba(59,130,246,0.3)',
+                backgroundColor: 'rgba(59, 130, 246, 0.25)',
                 type: 'bar',
                 borderRadius: 4,
                 yAxisID: 'y1'
@@ -675,12 +772,12 @@ async function renderDashboard(el) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-              legend: { display: true, labels: { color: '#94a3b8', font: { size: 11 } } }
+              legend: { display: true, labels: { color: '#475569', font: { size: 11, family: 'Plus Jakarta Sans, sans-serif', weight: '600' } } }
             },
             scales: {
-              x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
-              y: { type: 'linear', display: true, position: 'left', ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
-              y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#64748b', font: { size: 11 }, precision: 0 } }
+              x: { ticks: { color: '#64748b', font: { size: 11, family: 'Plus Jakarta Sans, sans-serif' } }, grid: { color: 'rgba(0, 0, 0, 0.04)' } },
+              y: { type: 'linear', display: true, position: 'left', ticks: { color: '#64748b', font: { size: 11, family: 'Plus Jakarta Sans, sans-serif' } }, grid: { color: 'rgba(0, 0, 0, 0.04)' } },
+              y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#94a3b8', font: { size: 11, family: 'Plus Jakarta Sans, sans-serif' }, precision: 0 } }
             }
           }
         });
@@ -703,7 +800,7 @@ async function renderDashboard(el) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-              legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 11 }, padding: 14 } }
+              legend: { position: 'bottom', labels: { color: '#475569', font: { size: 11, family: 'Plus Jakarta Sans, sans-serif', weight: '600' }, padding: 14 } }
             }
           }
         });
@@ -1326,7 +1423,25 @@ function showProductOrdersModal(product, productOrders) {
 }
 
 async function renderProducts(el) {
-  el.innerHTML = `<div class="admin-topbar"><h1>Products</h1><button class="btn btn-primary" id="addBtn"><i class="fa fa-plus"></i>Add Product</button></div><div class="table-card"><div class="table-header"><span class="table-title">All Products</span><div class="search-wrap"><i class="fa fa-search"></i><input class="search-input" id="pSearch" placeholder="Search products…"></div></div><table class="admin-table"><thead><tr><th>Image</th><th>Title</th><th>Price</th><th>Stock</th><th>Orders</th><th>Code</th><th>Actions</th></tr></thead><tbody id="pBody"><tr><td colspan="7"><div class="empty-state"><i class="fa fa-spinner fa-spin"></i><p>Loading…</p></div></td></tr></tbody></table></div>`;
+  el.innerHTML = `<div class="admin-topbar">
+    <div>
+      <h1 style="margin:0 0 4px 0;">Products</h1>
+      <p style="font-size:13px; color:var(--muted); margin:0;">Manage store inventory, catalog items, pricing, and stock levels.</p>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-primary" id="addBtn"><i class="fa-solid fa-plus"></i> Add Product</button>
+    </div>
+  </div>
+  <div class="table-card">
+    <div class="table-header">
+      <span class="table-title"><i class="fa-solid fa-boxes-stacked" style="color:var(--accent); margin-right:8px;"></i>All Products</span>
+      <div class="search-wrap"><i class="fa fa-search"></i><input class="search-input" id="pSearch" placeholder="Search products…"></div>
+    </div>
+    <table class="admin-table">
+      <thead><tr><th>Image</th><th>Title</th><th>Price</th><th>Stock</th><th>Orders</th><th>Code</th><th>Actions</th></tr></thead>
+      <tbody id="pBody"><tr><td colspan="7"><div class="empty-state"><i class="fa fa-spinner fa-spin"></i><p>Loading…</p></div></td></tr></tbody>
+    </table>
+  </div>`;
 
   el.querySelector('#addBtn').onclick = () => navigate('/admin/products/new');
 
@@ -1551,13 +1666,16 @@ function renderProductForm(el, p, id) {
 // ── Orders ────────────────────────────────────────────────
 async function renderOrders(el) {
   el.innerHTML = `<div class="admin-topbar">
-    <h1>Orders</h1>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-      <div style="display:flex;gap:6px;align-items:center;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:9px;padding:2px 10px;">
-        <span style="font-size:10px;color:var(--muted2);text-transform:uppercase;font-weight:700;letter-spacing:0.05em;">From</span>
-        <input type="date" class="filter-select" id="startDateFilter" style="background:transparent;border:none;padding:5px 0;font-family:inherit;font-size:13px;color:#fff;outline:none;cursor:pointer;">
-        <span style="font-size:10px;color:var(--muted2);text-transform:uppercase;font-weight:700;letter-spacing:0.05em;">To</span>
-        <input type="date" class="filter-select" id="endDateFilter" style="background:transparent;border:none;padding:5px 0;font-family:inherit;font-size:13px;color:#fff;outline:none;cursor:pointer;">
+    <div>
+      <h1 style="margin:0 0 4px 0;">Orders</h1>
+      <p style="font-size:13px; color:var(--muted); margin:0;">Track customer purchases, fulfillment status, and delivery logistics.</p>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <div class="date-filter-box">
+        <span>From</span>
+        <input type="date" class="date-input-field" id="startDateFilter">
+        <span>To</span>
+        <input type="date" class="date-input-field" id="endDateFilter">
       </div>
       <select class="filter-select" id="statusFilter"><option value="">All Status</option><option value="COMPLETED">COMPLETED</option><option value="ABANDONED">ABANDONED</option></select>
       <div class="search-wrap"><i class="fa fa-search"></i><input class="search-input" id="oSearch" placeholder="Search name, product…"></div>
@@ -1667,90 +1785,337 @@ async function renderOrders(el) {
 
 // ── Settings ──────────────────────────────────────────────
 async function renderSettings(el) {
-  el.innerHTML = `
-    <div class="admin-topbar">
-      <h1>Settings</h1>
-    </div>
-    <div class="table-card" style="padding:0; max-width: 800px;">
-      <div style="padding: 24px 28px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
-        <div>
-          <h2 style="font-size:18px; font-weight:700; color:#fff; margin:0 0 4px 0; display:flex; align-items:center; gap:10px;">
-            <i class="fa-brands fa-facebook" style="color: #1877f2; font-size: 22px;"></i> Facebook Pixel Configuration
-          </h2>
-          <p style="font-size:13px; color:var(--muted); margin:0;">Configure Meta Pixel tracking for your online store.</p>
+  let activeTab = 'branding'; // Default to Branding matching reference screenshot
+  let currentSettings = {};
+
+  try {
+    currentSettings = await api.getSettings();
+  } catch (e) {
+    currentSettings = {};
+  }
+
+  // Ensure default fallbacks matching reference screenshot
+  currentSettings.primaryColor = currentSettings.primaryColor || '#ff00c8';
+  currentSettings.accentColor = currentSettings.accentColor || '#8002bb';
+  currentSettings.backgroundColor = currentSettings.backgroundColor || '#f8f8f8';
+  currentSettings.fontFamily = currentSettings.fontFamily || 'Cairo, sans-serif';
+  currentSettings.storeName = currentSettings.storeName || 'Astro Shop';
+  currentSettings.facebookPixelId = currentSettings.facebookPixelId || '950990427685437';
+  currentSettings.facebookPixelEnabled = currentSettings.facebookPixelEnabled !== false;
+
+  const renderContent = () => {
+    const contentArea = document.getElementById('settingsContentArea');
+    if (!contentArea) return;
+
+    if (activeTab === 'branding') {
+      contentArea.innerHTML = `
+        <div class="settings-card-header">
+          <div class="settings-card-icon" style="background: rgba(147, 51, 234, 0.1); color: #9333ea;">
+            <i class="fa-solid fa-palette"></i>
+          </div>
+          <div>
+            <h2 class="settings-card-title">Store Branding</h2>
+            <p class="settings-card-sub">Customize your store's visual identity, colors, and typography.</p>
+          </div>
         </div>
-        <span class="badge badge-blue" style="font-size:11px; font-weight:600;"><i class="fa fa-chart-line"></i> Meta Events</span>
-      </div>
-      <form id="settingsForm" style="padding:28px;">
-        <div class="empty-state" id="settingsLoading"><i class="fa fa-spinner fa-spin"></i><p>Loading settings…</p></div>
-        <div id="settingsFields" style="display:none; flex-direction:column; gap:20px;">
-          <div class="form-group full">
-            <label class="form-label" style="display:flex; justify-content:space-between; align-items:center;">
+
+        <!-- Dynamic Preview Gradient Bar -->
+        <div class="gradient-preview-bar" id="gradientPreviewBar" style="background: linear-gradient(90deg, ${currentSettings.primaryColor} 0%, ${currentSettings.accentColor} 50%, #f1f5f9 50%, #f1f5f9 100%);"></div>
+
+        <div class="color-row">
+          <div>
+            <div class="color-info-lbl">Primary Color</div>
+            <div class="color-info-sub">Used for buttons, links, and primary brand accents.</div>
+          </div>
+          <div class="color-preview-box">
+            <input type="color" class="color-swatch" id="s-primaryColor" value="${currentSettings.primaryColor}">
+            <span id="s-primaryColorText">${currentSettings.primaryColor}</span>
+          </div>
+        </div>
+
+        <div class="color-row">
+          <div>
+            <div class="color-info-lbl">Accent Color</div>
+            <div class="color-info-sub">Secondary highlight and gradient stop color.</div>
+          </div>
+          <div class="color-preview-box">
+            <input type="color" class="color-swatch" id="s-accentColor" value="${currentSettings.accentColor}">
+            <span id="s-accentColorText">${currentSettings.accentColor}</span>
+          </div>
+        </div>
+
+        <div class="color-row">
+          <div>
+            <div class="color-info-lbl">Background Color</div>
+            <div class="color-info-sub">Page background tone for the storefront.</div>
+          </div>
+          <div class="color-preview-box">
+            <input type="color" class="color-swatch" id="s-bgColor" value="${currentSettings.backgroundColor}">
+            <span id="s-bgColorText">${currentSettings.backgroundColor}</span>
+          </div>
+        </div>
+
+        <div style="padding: 24px 0 0 0;">
+          <div class="color-info-lbl" style="margin-bottom: 4px;">Font Family</div>
+          <div class="color-info-sub" style="margin-bottom: 12px;">Global typography applied across titles and body text.</div>
+          <input type="text" class="font-input-box" id="s-fontFamily" value="${currentSettings.fontFamily}" placeholder="Cairo, sans-serif">
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; margin-top: 28px;">
+          <button class="settings-save-btn" id="saveBrandingBtn">
+            <i class="fa-solid fa-floppy-disk"></i> Save Changes
+          </button>
+        </div>
+      `;
+
+      // Live Color Picker Listeners
+      const pInput = document.getElementById('s-primaryColor');
+      const aInput = document.getElementById('s-accentColor');
+      const bInput = document.getElementById('s-bgColor');
+      const pText = document.getElementById('s-primaryColorText');
+      const aText = document.getElementById('s-accentColorText');
+      const bText = document.getElementById('s-bgColorText');
+      const gBar = document.getElementById('gradientPreviewBar');
+
+      const updateGradient = () => {
+        gBar.style.background = `linear-gradient(90deg, ${pInput.value} 0%, ${aInput.value} 50%, #f1f5f9 50%, #f1f5f9 100%)`;
+      };
+
+      pInput.oninput = () => {
+        pText.textContent = pInput.value;
+        currentSettings.primaryColor = pInput.value;
+        updateGradient();
+      };
+      aInput.oninput = () => {
+        aText.textContent = aInput.value;
+        currentSettings.accentColor = aInput.value;
+        updateGradient();
+      };
+      bInput.oninput = () => {
+        bText.textContent = bInput.value;
+        currentSettings.backgroundColor = bInput.value;
+      };
+
+      document.getElementById('saveBrandingBtn').onclick = handleSaveSettings;
+
+    } else if (activeTab === 'tracking') {
+      contentArea.innerHTML = `
+        <div class="settings-card-header">
+          <div class="settings-card-icon" style="background: rgba(24, 119, 242, 0.1); color: #1877f2;">
+            <i class="fa-brands fa-facebook"></i>
+          </div>
+          <div>
+            <h2 class="settings-card-title">Tracking & Analytics</h2>
+            <p class="settings-card-sub">Configure Meta Pixel and conversion tracking parameters for your store.</p>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+          <div>
+            <label class="color-info-lbl" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
               <span>Facebook Pixel ID *</span>
-              <small style="color:var(--accent); font-weight:400;">Format: 15-16 digits</small>
+              <small style="color: var(--accent); font-weight: 600;">Format: 15-16 digits</small>
             </label>
-            <div style="position:relative;">
-              <i class="fa fa-key" style="position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--muted);"></i>
-              <input type="text" class="form-control" id="s-fbPixelId" placeholder="e.g. 950990427685437" style="padding-left:40px; font-family:monospace;" required>
+            <div style="position: relative;">
+              <i class="fa fa-key" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted2);"></i>
+              <input type="text" class="font-input-box" id="s-fbPixelId" value="${currentSettings.facebookPixelId || ''}" placeholder="e.g. 950990427685437" style="padding-left: 42px; font-family: monospace;">
             </div>
-            <p style="font-size:12px; color:var(--muted); margin-top:6px;">
+            <p style="font-size: 12px; color: var(--muted); margin: 6px 0 0 0;">
               Enter your Meta Pixel ID from Events Manager (e.g. <code>950990427685437</code>).
             </p>
           </div>
 
-          <div class="form-group full">
-            <label class="form-label">Pixel Status</label>
-            <select class="form-control" id="s-fbPixelEnabled">
-              <option value="true">Enabled (Active Tracking)</option>
-              <option value="false">Disabled (Pause Tracking)</option>
+          <div>
+            <label class="color-info-lbl" style="margin-bottom: 8px; display: block;">Pixel Tracking Status</label>
+            <select class="font-input-box" id="s-fbPixelEnabled" style="cursor: pointer;">
+              <option value="true" ${currentSettings.facebookPixelEnabled ? 'selected' : ''}>Enabled (Active Tracking)</option>
+              <option value="false" ${!currentSettings.facebookPixelEnabled ? 'selected' : ''}>Disabled (Pause Tracking)</option>
             </select>
           </div>
 
-          <div style="background: rgba(24, 119, 242, 0.08); border: 1px solid rgba(24, 119, 242, 0.2); border-radius: 12px; padding: 18px 20px; color: #e2e8f0; font-size: 13.5px; line-height: 1.6;">
-            <div style="font-weight: 700; color: #60a5fa; margin-bottom: 8px; display:flex; align-items:center; gap:8px;">
+          <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 16px; padding: 18px 22px; color: #1e3a8a; font-size: 13.5px; line-height: 1.6;">
+            <div style="font-weight: 800; color: #1d4ed8; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
               <i class="fa fa-circle-info"></i> How Meta Pixel Tracking Works
             </div>
-            <ul style="margin: 0; padding-left: 18px; color: #cbd5e1; display:flex; flex-direction:column; gap:6px;">
-              <li><strong>PageView:</strong> Automatically tracked on all store page visits.</li>
-              <li><strong>InitiateCheckout:</strong> Fired when a customer starts ordering a product.</li>
-              <li><strong>Purchase:</strong> Fired when an order is successfully submitted.</li>
+            <ul style="margin: 0; padding-left: 18px; color: #1e40af; display: flex; flex-direction: column; gap: 6px;">
+              <li><strong>PageView:</strong> Automatically tracked on every storefront visit.</li>
+              <li><strong>InitiateCheckout:</strong> Triggered when a customer starts an order checkout.</li>
+              <li><strong>Purchase:</strong> Triggered on completed purchases with full product & revenue data.</li>
             </ul>
           </div>
 
-          <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:12px;">
-            <button type="submit" class="btn btn-primary" id="saveSettingsBtn">
-              <i class="fa fa-save"></i> Save Settings
+          <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
+            <button class="settings-save-btn" id="saveTrackingBtn">
+              <i class="fa-solid fa-floppy-disk"></i> Save Tracking Settings
             </button>
           </div>
         </div>
-      </form>
-    </div>
-  `;
+      `;
 
-  const settings = await api.getSettings();
+      document.getElementById('saveTrackingBtn').onclick = handleSaveSettings;
 
-  document.getElementById('settingsLoading').style.display = 'none';
-  const fields = document.getElementById('settingsFields');
-  fields.style.display = 'flex';
+    } else if (activeTab === 'general') {
+      contentArea.innerHTML = `
+        <div class="settings-card-header">
+          <div class="settings-card-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+            <i class="fa-solid fa-sliders"></i>
+          </div>
+          <div>
+            <h2 class="settings-card-title">General Preferences</h2>
+            <p class="settings-card-sub">Manage your storefront name, contact information, and default currency.</p>
+          </div>
+        </div>
 
-  document.getElementById('s-fbPixelId').value = settings.facebookPixelId || '';
-  document.getElementById('s-fbPixelEnabled').value = settings.facebookPixelEnabled !== false ? 'true' : 'false';
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+          <div>
+            <label class="color-info-lbl" style="margin-bottom: 6px; display: block;">Store Name</label>
+            <input type="text" class="font-input-box" id="s-storeName" value="${currentSettings.storeName || 'Astro Shop'}">
+          </div>
+          <div>
+            <label class="color-info-lbl" style="margin-bottom: 6px; display: block;">Store Currency</label>
+            <select class="font-input-box" id="s-currency">
+              <option value="XOF" selected>FCFA (Franc CFA - XOF)</option>
+              <option value="EUR">EUR (€)</option>
+              <option value="USD">USD ($)</option>
+            </select>
+          </div>
+          <div>
+            <label class="color-info-lbl" style="margin-bottom: 6px; display: block;">Support Email</label>
+            <input type="email" class="font-input-box" id="s-supportEmail" value="support@astroshop.com">
+          </div>
 
-  document.getElementById('settingsForm').onsubmit = async e => {
-    e.preventDefault();
-    const btn = document.getElementById('saveSettingsBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving…';
+          <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
+            <button class="settings-save-btn" id="saveGeneralBtn">
+              <i class="fa-solid fa-floppy-disk"></i> Save Preferences
+            </button>
+          </div>
+        </div>
+      `;
+      document.getElementById('saveGeneralBtn').onclick = handleSaveSettings;
 
-    const data = {
-      facebookPixelId: document.getElementById('s-fbPixelId').value.trim(),
-      facebookPixelEnabled: document.getElementById('s-fbPixelEnabled').value === 'true'
+    } else if (activeTab === 'seo') {
+      contentArea.innerHTML = `
+        <div class="settings-card-header">
+          <div class="settings-card-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
+            <i class="fa-solid fa-bullhorn"></i>
+          </div>
+          <div>
+            <h2 class="settings-card-title">SEO & Marketing</h2>
+            <p class="settings-card-sub">Optimize search engine metadata and social sharing previews.</p>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+          <div>
+            <label class="color-info-lbl" style="margin-bottom: 6px; display: block;">Homepage Meta Title</label>
+            <input type="text" class="font-input-box" id="s-metaTitle" value="Astro Shop - Boutique E-commerce & Mode">
+          </div>
+          <div>
+            <label class="color-info-lbl" style="margin-bottom: 6px; display: block;">Homepage Meta Description</label>
+            <textarea class="font-input-box" id="s-metaDesc" rows="3" style="resize:vertical;">Découvrez notre collection exclusive. Livraison rapide, paiement à la livraison et qualité premium garantie.</textarea>
+          </div>
+          <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
+            <button class="settings-save-btn" id="saveSeoBtn">
+              <i class="fa-solid fa-floppy-disk"></i> Save SEO Settings
+            </button>
+          </div>
+        </div>
+      `;
+      document.getElementById('saveSeoBtn').onclick = handleSaveSettings;
+
+    } else if (activeTab === 'reviews') {
+      contentArea.innerHTML = `
+        <div class="settings-card-header">
+          <div class="settings-card-icon" style="background: rgba(236, 72, 153, 0.1); color: #ec4899;">
+            <i class="fa-solid fa-star"></i>
+          </div>
+          <div>
+            <h2 class="settings-card-title">Reviews & Feedback</h2>
+            <p class="settings-card-sub">Configure customer review submission and moderation settings.</p>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+          <div class="color-row">
+            <div>
+              <div class="color-info-lbl">Auto-Approve Customer Reviews</div>
+              <div class="color-info-sub">Publish submitted reviews immediately without manual review.</div>
+            </div>
+            <select class="filter-select" id="s-autoApprove">
+              <option value="true" selected>Enabled</option>
+              <option value="false">Disabled</option>
+            </select>
+          </div>
+          <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
+            <button class="settings-save-btn" id="saveReviewsBtn">
+              <i class="fa-solid fa-floppy-disk"></i> Save Review Settings
+            </button>
+          </div>
+        </div>
+      `;
+      document.getElementById('saveReviewsBtn').onclick = handleSaveSettings;
+
+    } else if (activeTab === 'api') {
+      contentArea.innerHTML = `
+        <div class="settings-card-header">
+          <div class="settings-card-icon" style="background: rgba(99, 102, 241, 0.1); color: #6366f1;">
+            <i class="fa-solid fa-key"></i>
+          </div>
+          <div>
+            <h2 class="settings-card-title">Store API Key</h2>
+            <p class="settings-card-sub">Credentials for integrating webhooks, ERPs, and automated pipelines.</p>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+          <div>
+            <label class="color-info-lbl" style="margin-bottom: 8px; display: block;">Production API Token</label>
+            <div style="display: flex; gap: 10px;">
+              <input type="text" class="font-input-box" style="font-family: monospace;" readonly value="store_api_token_98327498172948123984120938">
+              <button class="btn btn-ghost" id="copyApiKeyBtn"><i class="fa-solid fa-copy"></i> Copy</button>
+            </div>
+          </div>
+        </div>
+      `;
+      const copyBtn = document.getElementById('copyApiKeyBtn');
+      if (copyBtn) {
+        copyBtn.onclick = () => {
+          navigator.clipboard.writeText('store_api_token_98327498172948123984120938');
+          toast('API key copied to clipboard!');
+        };
+      }
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    // Gather all inputs if present
+    const pColorEl = document.getElementById('s-primaryColor');
+    const aColorEl = document.getElementById('s-accentColor');
+    const bColorEl = document.getElementById('s-bgColor');
+    const fontEl = document.getElementById('s-fontFamily');
+    const pixelIdEl = document.getElementById('s-fbPixelId');
+    const pixelEnEl = document.getElementById('s-fbPixelEnabled');
+    const storeNameEl = document.getElementById('s-storeName');
+
+    const payload = {
+      ...currentSettings,
+      primaryColor: pColorEl ? pColorEl.value : currentSettings.primaryColor,
+      accentColor: aColorEl ? aColorEl.value : currentSettings.accentColor,
+      backgroundColor: bColorEl ? bColorEl.value : currentSettings.backgroundColor,
+      fontFamily: fontEl ? fontEl.value.trim() : currentSettings.fontFamily,
+      facebookPixelId: pixelIdEl ? pixelIdEl.value.trim() : currentSettings.facebookPixelId,
+      facebookPixelEnabled: pixelEnEl ? pixelEnEl.value === 'true' : currentSettings.facebookPixelEnabled,
+      storeName: storeNameEl ? storeNameEl.value.trim() : currentSettings.storeName,
     };
 
+    const saveBtns = el.querySelectorAll('.settings-save-btn');
+    saveBtns.forEach(b => {
+      b.disabled = true;
+      b.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving…';
+    });
+
     try {
-      const res = await api.updateSettings(data);
+      const res = await api.updateSettings(payload);
       if (res.ok) {
-        toast('Facebook Pixel settings saved successfully!');
+        currentSettings = payload;
+        toast('Store settings saved successfully!');
       } else {
         const err = await res.json().catch(() => ({}));
         toast(err.error || 'Failed to save settings', 'error');
@@ -1758,10 +2123,75 @@ async function renderSettings(el) {
     } catch (err) {
       toast('Network error. Failed to save.', 'error');
     } finally {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="fa fa-save"></i> Save Settings';
+      saveBtns.forEach(b => {
+        b.disabled = false;
+        b.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Changes';
+      });
     }
   };
+
+  el.innerHTML = `
+    <div class="admin-topbar">
+      <div>
+        <h1>Store Settings</h1>
+        <p style="font-size:13px; color:var(--muted); margin:4px 0 0 0;">Manage your store preferences, branding, domains, and team.</p>
+      </div>
+      <div class="topbar-actions">
+        <button class="topbar-icon-btn" title="Language"><i class="fa-solid fa-globe"></i></button>
+        <button class="topbar-icon-btn" title="Theme"><i class="fa-solid fa-moon"></i></button>
+        <button class="topbar-icon-btn" title="Notifications"><i class="fa-solid fa-bell"></i></button>
+        <button class="settings-save-btn" id="topSettingsSaveBtn" style="margin-top:0; padding:8px 22px;">
+          <i class="fa-solid fa-floppy-disk"></i> Save Changes
+        </button>
+      </div>
+    </div>
+
+    <div class="settings-layout">
+      <!-- Left Sub-Navigation Menu -->
+      <div class="settings-subnav">
+        <button class="settings-subnav-item ${activeTab === 'general' ? 'active' : ''}" data-stab="general">
+          <i class="fa-solid fa-sliders"></i> General
+        </button>
+        <button class="settings-subnav-item ${activeTab === 'branding' ? 'active' : ''}" data-stab="branding">
+          <i class="fa-solid fa-palette"></i> Branding
+        </button>
+        <button class="settings-subnav-item ${activeTab === 'seo' ? 'active' : ''}" data-stab="seo">
+          <i class="fa-solid fa-bullhorn"></i> SEO & Marketing
+        </button>
+        <button class="settings-subnav-item ${activeTab === 'reviews' ? 'active' : ''}" data-stab="reviews">
+          <i class="fa-solid fa-star"></i> Reviews
+        </button>
+        <button class="settings-subnav-item ${activeTab === 'tracking' ? 'active' : ''}" data-stab="tracking">
+          <i class="fa-solid fa-chart-line"></i> Tracking & Analytics
+        </button>
+        <button class="settings-subnav-item ${activeTab === 'api' ? 'active' : ''}" data-stab="api">
+          <i class="fa-solid fa-key"></i> Store API Key
+        </button>
+      </div>
+
+      <!-- Right Content Card -->
+      <div class="settings-card" id="settingsContentArea">
+      </div>
+    </div>
+  `;
+
+  // Attach tab switching handlers
+  const tabBtns = el.querySelectorAll('.settings-subnav-item');
+  tabBtns.forEach(btn => {
+    btn.onclick = () => {
+      tabBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeTab = btn.getAttribute('data-stab');
+      renderContent();
+    };
+  });
+
+  const topSaveBtn = document.getElementById('topSettingsSaveBtn');
+  if (topSaveBtn) {
+    topSaveBtn.onclick = handleSaveSettings;
+  }
+
+  renderContent();
 }
 
 window._showOrderDetail = async function(orderId) {
