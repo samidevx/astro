@@ -6,6 +6,40 @@ const COUNTRY_MAP = {
   GN: "Guinée", CD: "RDC", CG: "Congo", TD: "Tchad"
 };
 
+// ── Currency & Exchange Rate Configuration ──────────────────
+// Base currency: CFA | Rates: 1$ = 645 CFA, 1$ = 10,200 GNF
+export const RATES = {
+  USD_TO_CFA: 645,
+  USD_TO_GNF: 10200,
+  GNF_TO_CFA: 645 / 10200, // ≈ 0.0632353 CFA per 1 GNF
+  CFA_TO_GNF: 10200 / 645  // ≈ 15.81395 GNF per 1 CFA
+};
+
+export function getOrderCurrency(order) {
+  if (!order) return 'CFA';
+  const pays = String(order.pays || order.country || '').trim().toUpperCase();
+  const curr = String(order.currency || '').trim().toUpperCase();
+  const prix = String(order.prix || '').trim().toUpperCase();
+  if (pays === 'GN' || pays === 'GUINÉE' || pays === 'GUINEE' || curr === 'GNF' || prix.includes('GNF')) {
+    return 'GNF';
+  }
+  return order.currency || 'CFA';
+}
+
+export function isOrderGNF(order) {
+  return getOrderCurrency(order) === 'GNF';
+}
+
+// Normalized to CFA for unified store stats, charts, and metrics
+export function getOrderRevenueCFA(order) {
+  if (!order) return 0;
+  const raw = Number(order.total) || 0;
+  if (isOrderGNF(order)) {
+    return Math.round(raw * RATES.GNF_TO_CFA);
+  }
+  return raw;
+}
+
 // ── Theme Management ─────────────────────────────────────
 window.getAdminTheme = function() {
   try {
@@ -307,11 +341,11 @@ async function renderDashboard(el) {
     const abandoned = filteredOrders.filter(o => o.status === 'ABANDONED');
     const pending = filteredOrders.filter(o => o.status === 'PENDING' || (!o.status && o.status !== 'COMPLETED' && o.status !== 'ABANDONED'));
 
-    const revenue = completed.reduce((s, o) => s + (Number(o.total) || 0), 0);
+    const revenue = completed.reduce((s, o) => s + getOrderRevenueCFA(o), 0);
     const convRate = filteredOrders.length ? ((completed.length / filteredOrders.length) * 100).toFixed(1) : '0.0';
     const aov = completed.length ? Math.round(revenue / completed.length) : 0;
 
-    // Top Selling Products Calculation
+    // Top Selling Products Calculation (revenue normalized in CFA)
     const productSalesMap = {};
     completed.forEach(o => {
       const pName = (o.produit || 'Unknown').split(' (')[0].trim();
@@ -320,23 +354,32 @@ async function renderDashboard(el) {
       }
       productSalesMap[pName].ordersCount += 1;
       productSalesMap[pName].totalQty += (Number(o.quantity) || 1);
-      productSalesMap[pName].revenue += (Number(o.total) || 0);
+      productSalesMap[pName].revenue += getOrderRevenueCFA(o);
     });
 
     const topProducts = Object.values(productSalesMap).sort((a, b) => b.revenue - a.revenue);
     const topProduct = topProducts[0] || null;
 
-    // Country Breakdown Calculation
+    // Country Breakdown Calculation (revenue normalized in CFA with GNF tracking)
     const countryMap = {};
     filteredOrders.forEach(o => {
       const code = o.pays || 'Other';
       if (!countryMap[code]) {
-        countryMap[code] = { code, name: COUNTRY_MAP[code] || code, total: 0, completed: 0, revenue: 0 };
+        countryMap[code] = {
+          code,
+          name: COUNTRY_MAP[code] || code,
+          total: 0,
+          completed: 0,
+          revenue: 0,
+          nativeRevenue: 0,
+          currency: code === 'GN' ? 'GNF' : 'CFA'
+        };
       }
       countryMap[code].total += 1;
       if (o.status === 'COMPLETED') {
         countryMap[code].completed += 1;
-        countryMap[code].revenue += (Number(o.total) || 0);
+        countryMap[code].revenue += getOrderRevenueCFA(o);
+        countryMap[code].nativeRevenue += (Number(o.total) || 0);
       }
     });
     const countryList = Object.values(countryMap).sort((a, b) => b.total - a.total);
@@ -372,7 +415,7 @@ async function renderDashboard(el) {
       const isTracked = !!(rawCampaign || rawAd || rawSource);
       if (isTracked) trackedOrdersCount++;
 
-      const orderRevenue = Number(o.total) || 0;
+      const orderRevenue = getOrderRevenueCFA(o);
       const orderQty = Number(o.quantity) || 1;
 
       if (!productAttributionMap[prodKey]) {
@@ -549,7 +592,7 @@ async function renderDashboard(el) {
         labels.push(d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }));
         const dayCompleted = completed.filter(o => (o.date || o.savedAt || '').startsWith(key));
         const dayAll = filteredOrders.filter(o => (o.date || o.savedAt || '').startsWith(key));
-        revData.push(dayCompleted.reduce((s, o) => s + (Number(o.total) || 0), 0));
+        revData.push(dayCompleted.reduce((s, o) => s + getOrderRevenueCFA(o), 0));
         ordData.push(dayAll.length);
       }
     } else {
@@ -560,7 +603,7 @@ async function renderDashboard(el) {
         labels.push(d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }));
         const dayCompleted = completed.filter(o => (o.date || o.savedAt || '').startsWith(key));
         const dayAll = filteredOrders.filter(o => (o.date || o.savedAt || '').startsWith(key));
-        revData.push(dayCompleted.reduce((s, o) => s + (Number(o.total) || 0), 0));
+        revData.push(dayCompleted.reduce((s, o) => s + getOrderRevenueCFA(o), 0));
         ordData.push(dayAll.length);
       }
     }
@@ -573,7 +616,7 @@ async function renderDashboard(el) {
           <div class="kpi-icon"><i class="fa fa-coins"></i></div>
           <div class="kpi-lbl">Total Revenue</div>
           <div class="kpi-val">${fmtPrice(revenue)} <small style="font-size:13px;">CFA</small></div>
-          <div class="kpi-sub"><i class="fa fa-check-circle" style="color:var(--green);"></i> ${completed.length} paid orders</div>
+          <div class="kpi-sub"><i class="fa fa-check-circle" style="color:var(--green);"></i> ${completed.length} paid orders <span style="font-size:11px; color:var(--muted); margin-left:4px;" title="1$ = 645 CFA = 10,200 GNF">(GN converted)</span></div>
         </div>
 
         <div class="kpi-card kpi-blue">
@@ -681,7 +724,10 @@ async function renderDashboard(el) {
                   </div>
                   <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-top:2px;">
                     <span>Completed: ${c.completed}</span>
-                    <span style="color:var(--green); font-weight:600;">${fmtPrice(c.revenue)} CFA</span>
+                    <span style="color:var(--green); font-weight:600;">
+                      ${fmtPrice(c.revenue)} CFA
+                      ${c.code === 'GN' && c.nativeRevenue ? `<small style="color:var(--muted); font-weight:500;"> (${fmtPrice(c.nativeRevenue)} GNF)</small>` : ''}
+                    </span>
                   </div>
                 </div>
               `;
@@ -776,7 +822,10 @@ async function renderDashboard(el) {
                 <td><strong>${o.nom}</strong><br><small style="color:var(--muted);">${o.telephone || ''}</small></td>
                 <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${o.produit}">${o.produit}</td>
                 <td>${COUNTRY_MAP[o.pays] || o.pays || '—'}</td>
-                <td><strong>${fmtPrice(o.total || 0)}</strong> CFA</td>
+                <td style="white-space:nowrap;">
+                  <strong>${fmtPrice(o.total || 0)}</strong> <span style="font-size:11px; font-weight:700;">${getOrderCurrency(o)}</span>
+                  ${isOrderGNF(o) ? `<br><small style="color:var(--muted); font-size:11px;">≈ ${fmtPrice(getOrderRevenueCFA(o))} CFA</small>` : ''}
+                </td>
                 <td>${statusBadge(o.status)}</td>
               </tr>`).join('')}
             ${filteredOrders.length === 0 ? `<tr><td colspan="6"><div class="empty-state"><i class="fa fa-inbox"></i><p>No orders recorded in selected period.</p></div></td></tr>` : ''}
@@ -1415,7 +1464,10 @@ function showProductOrdersModal(product, productOrders) {
           </div>
           <div style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2); padding: 8px 16px; border-radius: 10px;">
             <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 700;">Total Revenue</div>
-            <div style="font-size: 18px; font-weight: 800; color: var(--accent);">${fmtPrice(totalRevenue)} ${product.currency || 'CFA'}</div>
+            <div style="font-size: 18px; font-weight: 800; color: var(--accent);">
+              ${fmtPrice(totalRevenue)} ${product.currency || 'CFA'}
+              ${product.currency === 'GNF' ? `<span style="font-size:12px; font-weight:600; color:var(--muted);">(≈ ${fmtPrice(Math.round(totalRevenue * RATES.GNF_TO_CFA))} CFA)</span>` : ''}
+            </div>
           </div>
         </div>
 
@@ -1464,7 +1516,10 @@ function showProductOrdersModal(product, productOrders) {
                     ${o.pays || '—'}${o.adresse ? `<br><small style="color:var(--muted);">${o.adresse}</small>` : ''}
                   </td>
                   <td style="text-align:center;font-weight:600;">${o.quantity || 1}</td>
-                  <td><strong>${fmtPrice(o.total || 0)}</strong> CFA</td>
+                  <td style="white-space:nowrap;">
+                    <strong>${fmtPrice(o.total || 0)}</strong> <span style="font-size:11px; font-weight:700;">${getOrderCurrency(o)}</span>
+                    ${isOrderGNF(o) ? `<br><small style="color:var(--muted); font-size:11px;">≈ ${fmtPrice(getOrderRevenueCFA(o))} CFA</small>` : ''}
+                  </td>
                   <td>${statusBadge(o.status)}</td>
                 </tr>
               `).join('')}
@@ -1744,6 +1799,9 @@ async function renderOrders(el) {
       <p style="font-size:13px; color:var(--muted); margin:0;">Track customer purchases, fulfillment status, and delivery logistics.</p>
     </div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <div style="display:inline-flex; align-items:center; gap:6px; background:var(--surface2); border:1px solid var(--border); padding:5px 12px; border-radius:8px; font-size:11.5px; font-weight:600; color:var(--muted);" title="Guinea GNF conversion rate: 1 USD = 10,200 GNF = 645 CFA">
+        <i class="fa-solid fa-coins" style="color:var(--accent);"></i> GN: 1$ = 10 200 GNF = 645 CFA
+      </div>
       <div class="date-filter-box">
         <span>From</span>
         <input type="date" class="date-input-field" id="startDateFilter">
@@ -1751,7 +1809,7 @@ async function renderOrders(el) {
         <input type="date" class="date-input-field" id="endDateFilter">
       </div>
       <select class="filter-select" id="statusFilter"><option value="">All Status</option><option value="COMPLETED">COMPLETED</option><option value="ABANDONED">ABANDONED</option></select>
-      <div class="search-wrap"><i class="fa fa-search"></i><input class="search-input" id="oSearch" placeholder="Search name, product…"></div>
+      <div class="search-wrap"><i class="fa fa-search"></i><input class="search-input" id="oSearch" placeholder="Search name, product, country…"></div>
       <button class="btn btn-ghost btn-sm" id="exportCsv"><i class="fa fa-download"></i>CSV</button>
       <button class="topbar-icon-btn theme-toggle-btn" title="Toggle Theme"><i class="fa-solid fa-moon"></i></button>
     </div>
@@ -1801,10 +1859,13 @@ async function renderOrders(el) {
         <td style="font-size:12px;color:var(--muted);white-space:nowrap;">${fmtDate(o.date||o.savedAt)}</td>
         <td style="font-family:monospace;font-size:11px;color:var(--muted);">${(o.order_id||'').slice(0,14)}</td>
         <td><strong>${o.nom}</strong><br><small style="color:var(--muted);">${o.telephone||''}</small></td>
-        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${o.produit}</td>
+        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${o.produit}">${o.produit}</td>
         <td style="text-align:center;">${o.quantity||1}</td>
-        <td><strong>${fmtPrice(o.total||0)}</strong> CFA</td>
-        <td>${o.pays||'—'}</td>
+        <td style="white-space:nowrap;">
+          <div style="font-weight:700;">${fmtPrice(o.total||0)} <span class="badge ${isOrderGNF(o) ? 'badge-purple' : ''}" style="font-size:10px; padding:1px 5px; margin-left:2px;">${getOrderCurrency(o)}</span></div>
+          ${isOrderGNF(o) ? `<small style="color:var(--muted); font-size:11px;">≈ ${fmtPrice(getOrderRevenueCFA(o))} CFA</small>` : ''}
+        </td>
+        <td><strong>${o.pays||'—'}</strong></td>
         <td>${statusBadge(o.status)}</td>
       </tr>`).join('') : `<tr><td colspan="8"><div class="empty-state"><i class="fa fa-inbox"></i><p>No orders found.</p></div></td></tr>`;
   };
@@ -1817,7 +1878,7 @@ async function renderOrders(el) {
     const endVal = document.getElementById('endDateFilter').value;
 
     const matched = orders.filter(o => {
-      const matchesSearch = !q || o.nom?.toLowerCase().includes(q) || o.produit?.toLowerCase().includes(q) || o.telephone?.includes(q);
+      const matchesSearch = !q || o.nom?.toLowerCase().includes(q) || o.produit?.toLowerCase().includes(q) || o.telephone?.includes(q) || o.pays?.toLowerCase().includes(q) || o.order_id?.toLowerCase().includes(q);
       const matchesStatus = !s || o.status === s;
 
       let matchesDate = true;
@@ -1848,8 +1909,8 @@ async function renderOrders(el) {
   document.getElementById('endDateFilter').onchange = applyFilters;
 
   document.getElementById('exportCsv').onclick = () => {
-    const headers = ['Date','Order ID','Name','Phone','Country','City','Product','Qty','Total','Status'];
-    const rows = orders.map(o => [fmtDate(o.date||o.savedAt),o.order_id,o.nom,o.telephone,o.pays,o.adresse,o.produit,o.quantity||1,o.total||0,o.status].map(v=>`"${v||''}"`).join(','));
+    const headers = ['Date','Order ID','Name','Phone','Country','City','Product','Qty','Total','Currency','Total_CFA','Status'];
+    const rows = orders.map(o => [fmtDate(o.date||o.savedAt),o.order_id,o.nom,o.telephone,o.pays,o.adresse,o.produit,o.quantity||1,o.total||0,getOrderCurrency(o),getOrderRevenueCFA(o),o.status].map(v=>`"${v||''}"`).join(','));
     const csv = [headers.join(','), ...rows].join('\n');
     const a = Object.assign(document.createElement('a'), { href: 'data:text/csv;charset=utf-8,'+encodeURIComponent(csv), download: `orders_${new Date().toISOString().slice(0,10)}.csv` });
     a.click();
@@ -2373,7 +2434,10 @@ function showOrderDetailModal(order) {
               </div>
               <div>
                 <div style="font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase;">Total Amount</div>
-                <div style="font-size: 16px; font-weight: 800; color: var(--accent); margin-top: 2px;">${fmtPrice(order.total || 0)} CFA</div>
+                <div style="font-size: 16px; font-weight: 800; color: var(--accent); margin-top: 2px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                  <span>${fmtPrice(order.total || 0)} ${getOrderCurrency(order)}</span>
+                  ${isOrderGNF(order) ? `<span style="font-size: 12px; font-weight: 600; color: var(--muted); padding: 2px 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px;">≈ ${fmtPrice(getOrderRevenueCFA(order))} CFA</span>` : ''}
+                </div>
               </div>
             </div>
           </div>
