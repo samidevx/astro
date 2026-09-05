@@ -1511,7 +1511,7 @@ async function renderProducts(el) {
       <div class="search-wrap"><i class="fa fa-search"></i><input class="search-input" id="pSearch" placeholder="Search products…"></div>
     </div>
     <table class="admin-table">
-      <thead><tr><th>Image</th><th>Title</th><th>Price</th><th>Stock</th><th>Orders</th><th>Code</th><th>Actions</th></tr></thead>
+      <thead><tr><th style="width:68px;">Image</th><th>Title</th><th>Price</th><th>Stock</th><th>Orders</th><th>Code</th><th style="text-align:right;">Actions</th></tr></thead>
       <tbody id="pBody"><tr><td colspan="7"><div class="empty-state"><i class="fa fa-spinner fa-spin"></i><p>Loading…</p></div></td></tr></tbody>
     </table>
   </div>`;
@@ -1533,7 +1533,7 @@ async function renderProducts(el) {
       const pOrders = getProductOrders(p, orders);
       return `
         <tr class="product-row" data-product-id="${p.id}" style="cursor: pointer;" title="Click row to view orders for ${p.title.replace(/"/g, '&quot;')}">
-          <td onclick="window._showProductOrders('${p.id}')"><img class="product-thumb" src="${p.featuredImage}" alt="${p.title}" onerror="this.src='https://placehold.co/40x40'"></td>
+          <td style="width:68px;" onclick="window._showProductOrders('${p.id}')"><img class="product-thumb" src="${p.featuredImage}" alt="${p.title}" style="width:48px;height:48px;min-width:48px;min-height:48px;object-fit:cover;border-radius:10px;border:1px solid var(--border);" onerror="this.src='https://placehold.co/48x48'"></td>
           <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${p.title}" onclick="window._showProductOrders('${p.id}')"><strong>${p.title}</strong></td>
           <td onclick="window._showProductOrders('${p.id}')"><strong>${fmtPrice(p.price)}</strong> ${p.currency}<br><small style="color:var(--muted);text-decoration:line-through;">${p.priceOld ? fmtPrice(p.priceOld) : ''}</small></td>
           <td onclick="window._showProductOrders('${p.id}')">${p.stock}</td>
