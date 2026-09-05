@@ -99,7 +99,7 @@ function router() {
   const main = document.getElementById('admin-main');
   if (path === '/admin/orders') renderOrders(main);
   else if (path === '/admin/settings') renderSettings(main);
-  else if (path === '/admin/customers') renderPlaceholderPage(main, 'Customers', 'fa-users', 'Manage customer profiles, contact directories, and purchase histories.');
+  else if (path === '/admin/customers') renderCustomers(main);
   else if (path === '/admin/reviews') renderPlaceholderPage(main, 'Product Reviews', 'fa-star', 'Moderate and publish customer testimonials, star ratings, and feedback.');
   else if (path === '/admin/delivery') renderPlaceholderPage(main, 'Delivery & Logistics', 'fa-truck-fast', 'Track shipping carriers, local delivery hubs, and dispatch statuses.');
   else if (path === '/admin/team') renderPlaceholderPage(main, 'Team Management', 'fa-user-group', 'Manage administrator permissions, staff access, and role assignments.');
@@ -1916,6 +1916,543 @@ async function renderOrders(el) {
     a.click();
     toast('CSV exported!');
   };
+}
+
+// ── Customers Module ───────────────────────────────────────
+function getCustomerInitials(name) {
+  if (!name) return 'CU';
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase();
+}
+
+function getCustomerSegmentBadge(segment) {
+  switch (segment) {
+    case 'VIP':
+      return `<span class="badge badge-gold" title="VIP: 2+ completed purchases or high spend"><i class="fa fa-crown" style="font-size:10px;"></i> VIP</span>`;
+    case 'RETURNING':
+      return `<span class="badge badge-purple" title="Returning: 2+ orders recorded"><i class="fa fa-repeat" style="font-size:10px;"></i> Returning</span>`;
+    case 'BUYER':
+      return `<span class="badge badge-green" title="Buyer: Completed at least 1 purchase"><i class="fa fa-check-circle" style="font-size:10px;"></i> Buyer</span>`;
+    case 'PROSPECT':
+      return `<span class="badge badge-orange" title="Prospect: Abandoned checkout only"><i class="fa fa-clock" style="font-size:10px;"></i> Prospect</span>`;
+    default:
+      return `<span class="badge badge-gray">${segment}</span>`;
+  }
+}
+
+async function renderCustomers(el) {
+  el.innerHTML = `
+    <div class="admin-topbar">
+      <div>
+        <h1 style="margin:0 0 4px 0;">Customers</h1>
+        <p style="font-size:13px; color:var(--muted); margin:0;">Manage customer profiles, purchase history, loyalty segments, and direct WhatsApp contacts.</p>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <div style="display:inline-flex; align-items:center; gap:6px; background:var(--surface2); border:1px solid var(--border); padding:5px 12px; border-radius:8px; font-size:11.5px; font-weight:600; color:var(--muted);" title="Guinea GNF conversion rate: 1 USD = 10,200 GNF = 645 CFA">
+          <i class="fa-solid fa-coins" style="color:var(--accent);"></i> GN: 1$ = 10 200 GNF = 645 CFA
+        </div>
+        <button class="btn btn-ghost btn-sm" id="exportCustomersCsv"><i class="fa fa-download"></i> Export CSV</button>
+        <button class="topbar-icon-btn theme-toggle-btn" title="Toggle Theme"><i class="fa-solid fa-moon"></i></button>
+      </div>
+    </div>
+
+    <!-- 4 KPI Overview Cards -->
+    <div class="kpi-grid" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); margin-bottom: 24px;" id="customerKpis">
+      <div class="kpi-card kpi-blue">
+        <div class="kpi-icon"><i class="fa fa-users"></i></div>
+        <div class="kpi-lbl">Total Profiles</div>
+        <div class="kpi-val" id="kpiTotalCustomers"><i class="fa fa-spinner fa-spin" style="font-size:18px;"></i></div>
+        <div class="kpi-sub" id="kpiSubCustomers">Loading customers…</div>
+      </div>
+      <div class="kpi-card kpi-green">
+        <div class="kpi-icon"><i class="fa fa-bag-shopping"></i></div>
+        <div class="kpi-lbl">Paying Buyers</div>
+        <div class="kpi-val" id="kpiPayingCustomers"><i class="fa fa-spinner fa-spin" style="font-size:18px;"></i></div>
+        <div class="kpi-sub" id="kpiSubBuyers">With completed orders</div>
+      </div>
+      <div class="kpi-card kpi-purple">
+        <div class="kpi-icon"><i class="fa fa-repeat"></i></div>
+        <div class="kpi-lbl">Repeat Buyers</div>
+        <div class="kpi-val" id="kpiRepeatCustomers"><i class="fa fa-spinner fa-spin" style="font-size:18px;"></i></div>
+        <div class="kpi-sub" id="kpiSubRepeat">Loyalty retention</div>
+      </div>
+      <div class="kpi-card kpi-orange">
+        <div class="kpi-icon"><i class="fa fa-wallet"></i></div>
+        <div class="kpi-lbl">Average Customer LTV</div>
+        <div class="kpi-val" id="kpiAvgLtv"><i class="fa fa-spinner fa-spin" style="font-size:18px;"></i></div>
+        <div class="kpi-sub" id="kpiSubLtv">Per paying customer</div>
+      </div>
+    </div>
+
+    <!-- Main Customers Card with Filters -->
+    <div class="table-card">
+      <div class="table-header" style="flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="table-title"><i class="fa-solid fa-address-book" style="color:var(--accent); margin-right:8px;"></i>Customer Directory</span>
+          <span class="badge badge-purple" id="customerCountBadge">0 profiles</span>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <select class="filter-select" id="segmentFilter">
+            <option value="">All Segments</option>
+            <option value="VIP">⭐ VIP Customers (2+ Orders or High Spend)</option>
+            <option value="RETURNING">🔁 Returning Customers</option>
+            <option value="BUYER">✅ Completed Buyers</option>
+            <option value="PROSPECT">⏳ Prospects (Abandoned Only)</option>
+          </select>
+          <select class="filter-select" id="custCountryFilter">
+            <option value="">All Countries</option>
+          </select>
+          <select class="filter-select" id="custSortFilter">
+            <option value="spend">Sort: Highest Spend (LTV)</option>
+            <option value="orders">Sort: Most Orders</option>
+            <option value="recent">Sort: Most Recent Activity</option>
+            <option value="name">Sort: Name (A-Z)</option>
+          </select>
+          <div class="search-wrap"><i class="fa fa-search"></i><input class="search-input" id="cSearch" placeholder="Search name, phone, city…"></div>
+        </div>
+      </div>
+
+      <div style="overflow-x: auto;">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Customer</th>
+              <th>Location</th>
+              <th>Orders</th>
+              <th>Total Spend (CFA)</th>
+              <th>Products Purchased</th>
+              <th>Last Active</th>
+              <th style="text-align:right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="cBody">
+            <tr><td colspan="7"><div class="empty-state"><i class="fa fa-spinner fa-spin"></i><p>Loading customers…</p></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  const orders = await api.getOrders();
+  
+  // Aggregate orders into unique customer profiles
+  const customerMap = {};
+
+  orders.forEach(o => {
+    const rawTel = (o.telephone || '').trim();
+    const cleanTel = rawTel.replace(/[^0-9]/g, '');
+    const rawNom = (o.nom || 'Unknown Customer').trim();
+    
+    // Group key: clean phone if >= 6 digits, otherwise lowercase name
+    const key = cleanTel.length >= 6 ? cleanTel : rawNom.toLowerCase();
+    if (!key) return;
+
+    if (!customerMap[key]) {
+      customerMap[key] = {
+        id: key,
+        name: rawNom,
+        phone: rawTel || '—',
+        cleanTel: cleanTel,
+        country: o.pays || '—',
+        city: o.adresse || '—',
+        orders: [],
+        completedOrders: 0,
+        abandonedOrders: 0,
+        totalSpentCFA: 0,
+        nativeSpentGNF: 0,
+        isGuinea: false,
+        productsMap: {},
+        firstOrderDate: o.date || o.savedAt || new Date().toISOString(),
+        lastOrderDate: o.date || o.savedAt || new Date().toISOString(),
+        firstCampaign: o.utm_campaign || o.campaign || '',
+        firstSource: o.utm_source || o.source || '',
+        firstAd: o.utm_content || o.ad || ''
+      };
+    }
+
+    const c = customerMap[key];
+    c.orders.push(o);
+
+    if (o.status === 'COMPLETED') {
+      c.completedOrders++;
+      const revCFA = getOrderRevenueCFA(o);
+      c.totalSpentCFA += revCFA;
+      if (isOrderGNF(o)) {
+        c.isGuinea = true;
+        c.nativeSpentGNF += (Number(o.total) || 0);
+      }
+    } else if (o.status === 'ABANDONED') {
+      c.abandonedOrders++;
+    }
+
+    if (isOrderGNF(o)) c.isGuinea = true;
+    if (o.pays && (!c.country || c.country === '—')) c.country = o.pays;
+    if (o.adresse && (!c.city || c.city === '—')) c.city = o.adresse;
+
+    const pTitle = (o.produit || '').split(' (')[0].trim();
+    if (pTitle) c.productsMap[pTitle] = (c.productsMap[pTitle] || 0) + (Number(o.quantity) || 1);
+
+    const orderTime = new Date(o.date || o.savedAt || 0).getTime();
+    if (orderTime && orderTime > new Date(c.lastOrderDate).getTime()) {
+      c.lastOrderDate = o.date || o.savedAt;
+    }
+    if (orderTime && orderTime < new Date(c.firstOrderDate).getTime()) {
+      c.firstOrderDate = o.date || o.savedAt;
+      if (o.utm_campaign || o.campaign) c.firstCampaign = o.utm_campaign || o.campaign;
+      if (o.utm_source || o.source) c.firstSource = o.utm_source || o.source;
+      if (o.utm_content || o.ad) c.firstAd = o.utm_content || o.ad;
+    }
+  });
+
+  const customersList = Object.values(customerMap).map(c => {
+    c.orders.sort((a, b) => new Date(b.date || b.savedAt || 0).getTime() - new Date(a.date || a.savedAt || 0).getTime());
+    
+    if (c.completedOrders >= 2 || c.totalSpentCFA >= 50000) {
+      c.segment = 'VIP';
+    } else if (c.orders.length >= 2) {
+      c.segment = 'RETURNING';
+    } else if (c.completedOrders >= 1) {
+      c.segment = 'BUYER';
+    } else {
+      c.segment = 'PROSPECT';
+    }
+
+    c.productsList = Object.keys(c.productsMap);
+    return c;
+  });
+
+  // KPI Calculations
+  const totalProfiles = customersList.length;
+  const payingCount = customersList.filter(c => c.completedOrders > 0).length;
+  const repeatCount = customersList.filter(c => c.orders.length >= 2).length;
+  const totalStoreRevCFA = customersList.reduce((s, c) => s + c.totalSpentCFA, 0);
+  const avgLtv = payingCount ? Math.round(totalStoreRevCFA / payingCount) : 0;
+  const repeatRate = totalProfiles ? Math.round((repeatCount / totalProfiles) * 100) : 0;
+
+  // Update KPI UI
+  const kpiTot = document.getElementById('kpiTotalCustomers');
+  const kpiPay = document.getElementById('kpiPayingCustomers');
+  const kpiRep = document.getElementById('kpiRepeatCustomers');
+  const kpiLtv = document.getElementById('kpiAvgLtv');
+  if (kpiTot) kpiTot.textContent = totalProfiles;
+  if (kpiPay) kpiPay.textContent = payingCount;
+  if (kpiRep) kpiRep.textContent = repeatCount;
+  if (kpiLtv) kpiLtv.innerHTML = `${fmtPrice(avgLtv)} <small style="font-size:12px;">CFA</small>`;
+
+  const subTot = document.getElementById('kpiSubCustomers');
+  const subPay = document.getElementById('kpiSubBuyers');
+  const subRep = document.getElementById('kpiSubRepeat');
+  const subLtv = document.getElementById('kpiSubLtv');
+  if (subTot) subTot.textContent = `${payingCount} buyers · ${totalProfiles - payingCount} prospects`;
+  if (subPay) subPay.textContent = `${totalProfiles ? Math.round((payingCount/totalProfiles)*100) : 0}% checkout conversion`;
+  if (subRep) subRep.textContent = `${repeatRate}% repeat buyer rate`;
+  if (subLtv) subLtv.textContent = `Total: ${fmtPrice(totalStoreRevCFA)} CFA`;
+
+  // Populate dynamic country filter
+  const countries = [...new Set(customersList.map(c => c.country).filter(x => x && x !== '—'))].sort();
+  const cCountrySelect = document.getElementById('custCountryFilter');
+  if (cCountrySelect) {
+    countries.forEach(code => {
+      const opt = document.createElement('option');
+      opt.value = code;
+      opt.textContent = `${COUNTRY_MAP[code] || code} (${code})`;
+      cCountrySelect.appendChild(opt);
+    });
+  }
+
+  // Sorting helper
+  const sortCustomers = (list, sortKey) => {
+    return [...list].sort((a, b) => {
+      if (sortKey === 'spend') return b.totalSpentCFA - a.totalSpentCFA;
+      if (sortKey === 'orders') return b.orders.length - a.orders.length;
+      if (sortKey === 'name') return a.name.localeCompare(b.name);
+      // default 'recent'
+      return new Date(b.lastOrderDate).getTime() - new Date(a.lastOrderDate).getTime();
+    });
+  };
+
+  let filtered = sortCustomers(customersList, 'spend');
+
+  const renderTable = () => {
+    const cBody = document.getElementById('cBody');
+    const countBadge = document.getElementById('customerCountBadge');
+    if (!cBody) return;
+    if (countBadge) countBadge.textContent = `${filtered.length} profile${filtered.length !== 1 ? 's' : ''}`;
+
+    if (!filtered.length) {
+      cBody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><i class="fa fa-users-slash"></i><p>No customers match your criteria.</p></div></td></tr>`;
+      return;
+    }
+
+    cBody.innerHTML = filtered.map(c => `
+      <tr class="customer-row" style="cursor:pointer;" onclick="window._showCustomerModal('${encodeURIComponent(c.id)}')" title="Click to view full customer profile & history">
+        <td>
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div class="customer-avatar ${c.segment === 'VIP' ? 'vip' : ''}">
+              ${getCustomerInitials(c.name)}
+            </div>
+            <div>
+              <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <strong style="color:var(--text); font-size:13.5px;">${c.name}</strong>
+                ${getCustomerSegmentBadge(c.segment)}
+              </div>
+              <div style="font-size:12px; color:var(--muted); font-family:monospace; margin-top:2px;">
+                ${c.phone}
+              </div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <strong style="font-size:13px; color:var(--text);">${COUNTRY_MAP[c.country] || c.country}</strong>
+          ${c.city && c.city !== '—' ? `<br><small style="color:var(--muted); font-size:11.5px;">${c.city}</small>` : ''}
+        </td>
+        <td>
+          <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+            <span class="badge ${c.completedOrders > 0 ? 'badge-green' : 'badge-gray'}" style="font-size:11px;">
+              <i class="fa fa-check"></i> ${c.completedOrders} paid
+            </span>
+            ${c.abandonedOrders > 0 ? `
+              <span class="badge badge-orange" style="font-size:11px;">
+                <i class="fa fa-clock"></i> ${c.abandonedOrders} abandoned
+              </span>
+            ` : ''}
+          </div>
+        </td>
+        <td style="white-space:nowrap;">
+          <strong style="font-size:14px; color:${c.totalSpentCFA > 0 ? 'var(--green)' : 'var(--muted)'};">
+            ${fmtPrice(c.totalSpentCFA)} CFA
+          </strong>
+          ${c.isGuinea && c.nativeSpentGNF > 0 ? `
+            <br><small style="color:var(--muted); font-size:11px;">(${fmtPrice(c.nativeSpentGNF)} GNF)</small>
+          ` : ''}
+        </td>
+        <td>
+          <div style="display:flex; flex-wrap:wrap; gap:4px; max-width:210px;">
+            ${c.productsList.slice(0, 2).map(p => `
+              <span style="background:var(--surface2); border:1px solid var(--border); font-size:11px; padding:2px 6px; border-radius:6px; color:var(--text); max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${p}">
+                ${p}
+              </span>
+            `).join('')}
+            ${c.productsList.length > 2 ? `<span style="font-size:10px; color:var(--muted); padding:2px 4px;">+${c.productsList.length - 2} more</span>` : ''}
+            ${c.productsList.length === 0 ? `<span style="color:var(--muted); font-size:12px;">—</span>` : ''}
+          </div>
+        </td>
+        <td style="font-size:12px; color:var(--muted); white-space:nowrap;">
+          ${fmtDate(c.lastOrderDate)}
+        </td>
+        <td style="text-align:right;" onclick="event.stopPropagation();">
+          <div style="display:inline-flex; gap:6px; align-items:center;">
+            ${c.cleanTel ? `
+              <a href="https://wa.me/${c.cleanTel}?text=${encodeURIComponent(`Bonjour ${c.name}, merci pour votre commande chez Astro Shop ! Comment pouvons-nous vous aider ?`)}" target="_blank" class="btn btn-sm" style="background:#25D366; color:#fff; border:none; padding:5px 9px; font-size:11.5px; text-decoration:none;" title="Direct WhatsApp Chat">
+                <i class="fab fa-whatsapp"></i>
+              </a>
+              <a href="tel:${c.phone}" class="btn btn-ghost btn-sm" style="padding:5px 9px; font-size:11.5px; text-decoration:none;" title="Call Customer">
+                <i class="fa fa-phone"></i>
+              </a>
+            ` : ''}
+            <button class="btn btn-ghost btn-sm" onclick="window._showCustomerModal('${encodeURIComponent(c.id)}')" style="padding:5px 9px; font-size:11.5px;" title="View Complete Profile">
+              <i class="fa fa-eye"></i>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  };
+
+  const applyFilters = () => {
+    const q = (document.getElementById('cSearch')?.value || '').toLowerCase().trim();
+    const seg = document.getElementById('segmentFilter')?.value || '';
+    const country = document.getElementById('custCountryFilter')?.value || '';
+    const sortKey = document.getElementById('custSortFilter')?.value || 'spend';
+
+    const matched = customersList.filter(c => {
+      const matchSearch = !q || c.name.toLowerCase().includes(q) || c.phone.includes(q) || c.city.toLowerCase().includes(q) || c.country.toLowerCase().includes(q) || c.productsList.some(p => p.toLowerCase().includes(q));
+      const matchSeg = !seg || c.segment === seg;
+      const matchCountry = !country || c.country === country;
+      return matchSearch && matchSeg && matchCountry;
+    });
+
+    filtered = sortCustomers(matched, sortKey);
+    renderTable();
+  };
+
+  document.getElementById('cSearch').oninput = applyFilters;
+  document.getElementById('segmentFilter').onchange = applyFilters;
+  document.getElementById('custCountryFilter').onchange = applyFilters;
+  document.getElementById('custSortFilter').onchange = applyFilters;
+
+  // CSV Export
+  document.getElementById('exportCustomersCsv').onclick = () => {
+    const headers = ['Name', 'Phone', 'Country', 'City', 'Segment', 'Total Orders', 'Completed Orders', 'Total Spent CFA', 'Native Currency', 'First Order Date', 'Last Order Date', 'Acquisition Source'];
+    const rows = customersList.map(c => [
+      c.name,
+      c.phone,
+      c.country,
+      c.city,
+      c.segment,
+      c.orders.length,
+      c.completedOrders,
+      c.totalSpentCFA,
+      c.isGuinea ? 'GNF' : 'CFA',
+      fmtDate(c.firstOrderDate),
+      fmtDate(c.lastOrderDate),
+      c.firstCampaign || c.firstSource || 'Direct'
+    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+
+    const csv = [headers.join(','), ...rows].join('\n');
+    const a = Object.assign(document.createElement('a'), {
+      href: 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv),
+      download: `customers_${new Date().toISOString().slice(0, 10)}.csv`
+    });
+    a.click();
+    toast('Customers CSV exported!');
+  };
+
+  // Expose Customer Modal Handler
+  window._showCustomerModal = (encodedId) => {
+    const id = decodeURIComponent(encodedId);
+    const customer = customersList.find(x => x.id === id);
+    if (!customer) {
+      toast('Customer not found', 'error');
+      return;
+    }
+    showCustomerModal(customer);
+  };
+
+  renderTable();
+}
+
+function showCustomerModal(customer) {
+  const oldModal = document.getElementById('customer-detail-modal');
+  if (oldModal) oldModal.remove();
+
+  const avgOrderCFA = customer.completedOrders ? Math.round(customer.totalSpentCFA / customer.completedOrders) : 0;
+
+  const modal = document.createElement('div');
+  modal.id = 'customer-detail-modal';
+  modal.className = 'modal-overlay open';
+  modal.innerHTML = `
+    <div class="modal-box" style="max-width: 800px; width: 95%;">
+      <!-- Header -->
+      <div class="modal-head" style="padding: 20px 28px;">
+        <div style="display:flex; align-items:center; gap:16px;">
+          <div class="customer-avatar ${customer.segment === 'VIP' ? 'vip' : ''}" style="width:50px; height:50px; font-size:18px;">
+            ${getCustomerInitials(customer.name)}
+          </div>
+          <div>
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <h2 style="font-size: 18px; font-weight: 800; margin: 0; color: var(--text);">${customer.name}</h2>
+              ${getCustomerSegmentBadge(customer.segment)}
+            </div>
+            <div style="display: flex; gap: 14px; align-items: center; font-size: 12.5px; color: var(--muted); margin-top: 4px; flex-wrap: wrap;">
+              <span><i class="fa fa-phone"></i> ${customer.phone}</span>
+              <span><i class="fa fa-location-dot"></i> ${COUNTRY_MAP[customer.country] || customer.country} ${customer.city && customer.city !== '—' ? `· ${customer.city}` : ''}</span>
+              <span><i class="fa fa-calendar-check"></i> Customer since ${fmtDate(customer.firstOrderDate)}</span>
+            </div>
+          </div>
+        </div>
+        <button class="modal-close" id="closeCustomerModal" style="font-size: 24px; padding: 4px 8px;">&times;</button>
+      </div>
+
+      <div class="modal-body" style="padding: 20px 28px; max-height: 70vh; overflow-y: auto; display:flex; flex-direction:column; gap:20px;">
+        <!-- Quick Action Bar -->
+        <div style="display:flex; justify-content:space-between; align-items:center; background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:12px 18px; flex-wrap:wrap; gap:10px;">
+          <div style="font-size:12.5px; color:var(--muted); font-weight:600;">Direct Contact & Communication:</div>
+          <div style="display:flex; gap:8px;">
+            ${customer.cleanTel ? `
+              <a href="https://wa.me/${customer.cleanTel}?text=${encodeURIComponent(`Bonjour ${customer.name}, merci pour votre commande chez Astro Shop ! Comment pouvons-nous vous aider ?`)}" target="_blank" class="btn btn-sm" style="background:#25D366; color:#fff; border:none; text-decoration:none; display:flex; align-items:center; gap:6px;">
+                <i class="fab fa-whatsapp"></i> Chat WhatsApp
+              </a>
+              <a href="tel:${customer.phone}" class="btn btn-ghost btn-sm" style="text-decoration:none; display:flex; align-items:center; gap:6px;">
+                <i class="fa fa-phone"></i> Call Phone
+              </a>
+            ` : ''}
+          </div>
+        </div>
+
+        <!-- 4 Customer Mini KPIs -->
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:12px;">
+          <div style="background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:12px 16px;">
+            <div style="font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase;">Total Orders</div>
+            <div style="font-size:18px; font-weight:800; color:var(--blue); margin-top:2px;">${customer.orders.length}</div>
+            <small style="color:var(--muted); font-size:11px;">${customer.completedOrders} paid · ${customer.abandonedOrders} abandoned</small>
+          </div>
+          <div style="background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:12px 16px;">
+            <div style="font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase;">Total Lifetime Spend</div>
+            <div style="font-size:18px; font-weight:800; color:var(--green); margin-top:2px;">${fmtPrice(customer.totalSpentCFA)} <small style="font-size:12px;">CFA</small></div>
+            ${customer.isGuinea && customer.nativeSpentGNF ? `<small style="color:var(--muted); font-size:11px;">≈ ${fmtPrice(customer.nativeSpentGNF)} GNF</small>` : `<small style="color:var(--muted); font-size:11px;">Paid in full</small>`}
+          </div>
+          <div style="background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:12px 16px;">
+            <div style="font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase;">Average Order Value</div>
+            <div style="font-size:18px; font-weight:800; color:var(--accent); margin-top:2px;">${fmtPrice(avgOrderCFA)} <small style="font-size:12px;">CFA</small></div>
+            <small style="color:var(--muted); font-size:11px;">Per completed purchase</small>
+          </div>
+          <div style="background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:12px 16px;">
+            <div style="font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase;">Acquisition Origin</div>
+            <div style="font-size:13.5px; font-weight:700; color:var(--text); margin-top:4px; max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${customer.firstCampaign || customer.firstSource || 'Direct / Organic'}">
+              ${customer.firstCampaign || customer.firstSource || 'Direct / Organic'}
+            </div>
+            <small style="color:var(--muted); font-size:11px;">First touch campaign</small>
+          </div>
+        </div>
+
+        <!-- Orders History Table -->
+        <div style="background:var(--surface2); border:1px solid var(--border); border-radius:12px; overflow:hidden;">
+          <div style="padding:14px 18px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:13px; font-weight:700; text-transform:uppercase; color:var(--text); letter-spacing:0.04em;">
+              <i class="fa-solid fa-clock-rotate-left" style="color:var(--accent); margin-right:6px;"></i> Order History (${customer.orders.length})
+            </span>
+            <small style="color:var(--muted);">Click any row to open full order details</small>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Order ID</th>
+                  <th>Product</th>
+                  <th>Qty</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${customer.orders.map(o => `
+                  <tr class="order-row" style="cursor:pointer;" onclick="window._showOrderDetail('${o.order_id}')" title="Click to view order details">
+                    <td style="font-size:12px; color:var(--muted); white-space:nowrap;">${fmtDate(o.date || o.savedAt)}</td>
+                    <td style="font-family:monospace; font-size:11px; color:var(--muted);">${(o.order_id || '').slice(0, 14)}</td>
+                    <td style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${o.produit}">
+                      <strong>${o.produit}</strong>
+                    </td>
+                    <td style="text-align:center; font-weight:600;">${o.quantity || 1}</td>
+                    <td style="white-space:nowrap;">
+                      <strong>${fmtPrice(o.total || 0)}</strong> <span style="font-size:11px; font-weight:700;">${getOrderCurrency(o)}</span>
+                      ${isOrderGNF(o) ? `<br><small style="color:var(--muted); font-size:10.5px;">≈ ${fmtPrice(getOrderRevenueCFA(o))} CFA</small>` : ''}
+                    </td>
+                    <td>${statusBadge(o.status)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="padding:14px 28px; background:rgba(255,255,255,0.015); display:flex; justify-content:flex-end;">
+        <button class="btn btn-ghost" id="closeCustModalBtn" type="button">Close</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  const closeModal = () => modal.remove();
+  modal.querySelector('#closeCustomerModal').onclick = closeModal;
+  modal.querySelector('#closeCustModalBtn').onclick = closeModal;
+  modal.onclick = (e) => { if (e.target === modal) closeModal(); };
 }
 
 // ── Settings ──────────────────────────────────────────────
