@@ -619,6 +619,20 @@ body.admin-body {
   background: #dc2626;
   color: #ffffff;
 }
+.btn-success {
+  background: #10b981;
+  color: #fff;
+  border: 1px solid #059669;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25);
+}
+.btn-success:hover {
+  background: #059669;
+  color: #fff;
+}
+[data-theme="dark"] .btn-success {
+  background: #059669;
+  border-color: #10b981;
+}
 .btn-sm {
   padding: 6px 12px;
   font-size: 12px;

@@ -1721,6 +1721,7 @@ function renderProductForm(el, p, id) {
           <div class="form-group"><label class="form-label">WhatsApp</label><input class="form-control" id="p-whatsapp" value="${p?.whatsapp||''}"></div>
           <div class="form-group"><label class="form-label">Countries (comma)</label><input class="form-control" id="p-pays" value="${p?.pays||'CI,SN,BF,TG,BJ,ML,GA,CM'}"></div>
           <div class="form-group"><label class="form-label">Reviews Count</label><input class="form-control" id="p-reviews" value="${p?.reviews||'0'}"></div>
+          <div class="form-group"><label class="form-label">Reviews Section?</label><select class="form-control" id="p-showReviews"><option value="yes" ${p?.showReviews!=='no'?'selected':''}>Yes (Show on product page)</option><option value="no" ${p?.showReviews==='no'?'selected':''}>No (Hide on product page)</option></select></div>
           <div class="form-group"><label class="form-label">Colors (comma)</label><input class="form-control" id="p-couleur" value="${p?.couleur||''}" placeholder="Noir, Blanc"></div>
           <div class="form-group"><label class="form-label">Sizes (comma)</label><input class="form-control" id="p-taille" value="${p?.taille||''}" placeholder="S, M, L"></div>
           <div class="form-group"><label class="form-label">Bundle?</label><select class="form-control" id="p-bundle"><option value="no" ${p?.bundle==='no'?'selected':''}>No</option><option value="yes" ${p?.bundle==='yes'?'selected':''}>Yes</option></select></div>
@@ -1863,6 +1864,7 @@ function renderProductForm(el, p, id) {
       couleur: document.getElementById('p-couleur').value.trim(),
       taille: document.getElementById('p-taille').value.trim(),
       bundle: document.getElementById('p-bundle').value,
+      showReviews: document.getElementById('p-showReviews').value,
       offres: offers,
       countdown: document.getElementById('p-countdown').value,
       isLandingPage: document.getElementById('p-isLandingPage').value,
@@ -2592,17 +2594,22 @@ async function renderReviews(el) {
 
   let reviews = [];
   let products = [];
+  let settings = {};
 
   try {
-    const [rData, pData] = await Promise.all([
+    const [rData, pData, sData] = await Promise.all([
       api.getReviews(),
-      api.getProducts()
+      api.getProducts(),
+      api.getSettings()
     ]);
     reviews = Array.isArray(rData) ? rData : [];
     products = Array.isArray(pData) ? pData : [];
+    settings = sData || {};
   } catch (e) {
     console.error('Error fetching reviews:', e);
   }
+
+  const isReviewsActive = settings.reviewsEnabled !== false;
 
   // Calculate Metrics
   const totalReviews = reviews.length;
@@ -2630,12 +2637,28 @@ async function renderReviews(el) {
         <h1 style="margin:0 0 4px 0;">Product Reviews</h1>
         <p style="font-size:13px; color:var(--muted); margin:0;">Moderate and publish customer testimonials, star ratings, and feedback.</p>
       </div>
-      <div class="topbar-actions">
+      <div class="topbar-actions" style="display:flex; align-items:center; gap:10px;">
+        <button id="toggleReviewsSectionBtn" class="btn ${isReviewsActive ? 'btn-success' : 'btn-ghost'}" style="display:inline-flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; padding:7px 14px; border-radius:10px; cursor:pointer;" title="Click to ${isReviewsActive ? 'deactivate' : 'activate'} reviews section on storefront">
+          <i class="fa-solid ${isReviewsActive ? 'fa-toggle-on' : 'fa-toggle-off'}" style="font-size:16px;"></i>
+          <span>Storefront Reviews: <strong>${isReviewsActive ? 'ACTIVE' : 'OFF'}</strong></span>
+        </button>
         <a href="/" target="_blank" class="topbar-icon-btn" title="View Storefront"><i class="fa fa-arrow-up-right-from-square"></i></a>
         <button class="topbar-icon-btn theme-toggle-btn" title="Toggle Theme"><i class="fa-solid fa-moon"></i></button>
         <button class="topbar-icon-btn" title="Notifications"><i class="fa fa-bell"></i></button>
       </div>
     </div>
+
+    ${!isReviewsActive ? `
+      <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 12px; padding: 14px 20px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 12px; color: #ef4444; font-size: 13.5px; font-weight: 600;">
+          <i class="fa-solid fa-circle-exclamation" style="font-size: 20px;"></i>
+          <span>Customer reviews section is currently <strong>DEACTIVATED</strong> on the storefront. Visitors cannot view ratings or submit testimonials.</span>
+        </div>
+        <button class="btn btn-sm btn-primary" id="bannerActivateReviewsBtn" style="white-space:nowrap;">
+          <i class="fa-solid fa-toggle-on"></i> Activate Reviews Section
+        </button>
+      </div>
+    ` : ''}
 
     <!-- 4 Overview KPI Cards -->
     <div class="kpi-grid" style="margin-bottom: 24px;">
@@ -3025,8 +3048,36 @@ async function renderReviews(el) {
     }
   };
 
-  renderTable();
-}
+  const handleToggleReviewsActive = async () => {
+      const nextState = !isReviewsActive;
+      const btn = document.getElementById('toggleReviewsSectionBtn');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Updating...';
+      }
+      try {
+        const res = await api.updateSettings({ reviewsEnabled: nextState });
+        if (res.ok) {
+          toast(`Reviews section is now ${nextState ? 'ACTIVATED' : 'DEACTIVATED'} on storefront!`);
+          renderReviews(el);
+        } else {
+          toast('Failed to update review section setting', 'error');
+          if (btn) btn.disabled = false;
+        }
+      } catch (err) {
+        console.error(err);
+        toast('Network error updating settings', 'error');
+        if (btn) btn.disabled = false;
+      }
+    };
+
+    const toggleBtn = document.getElementById('toggleReviewsSectionBtn');
+    if (toggleBtn) toggleBtn.onclick = handleToggleReviewsActive;
+    const bannerBtn = document.getElementById('bannerActivateReviewsBtn');
+    if (bannerBtn) bannerBtn.onclick = handleToggleReviewsActive;
+
+    renderTable();
+  }
 
 function showReviewModal(review = null, products = [], onSave = null) {
   const isEdit = Boolean(review);
@@ -3500,6 +3551,16 @@ async function renderSettings(el) {
         <div style="display: flex; flex-direction: column; gap: 20px;">
           <div class="color-row">
             <div>
+              <div class="color-info-lbl">Storefront Reviews Section</div>
+              <div class="color-info-sub">Show or hide the customer reviews section across product pages.</div>
+            </div>
+            <select class="filter-select" id="s-reviewsEnabled">
+              <option value="true" ${currentSettings.reviewsEnabled !== false ? 'selected' : ''}>Active (Visible)</option>
+              <option value="false" ${currentSettings.reviewsEnabled === false ? 'selected' : ''}>Disabled (Hidden)</option>
+            </select>
+          </div>
+          <div class="color-row">
+            <div>
               <div class="color-info-lbl">Auto-Approve Customer Reviews</div>
               <div class="color-info-sub">Publish submitted reviews immediately without manual review.</div>
             </div>
@@ -3557,6 +3618,7 @@ async function renderSettings(el) {
     const pixelIdEl = document.getElementById('s-fbPixelId');
     const pixelEnEl = document.getElementById('s-fbPixelEnabled');
     const storeNameEl = document.getElementById('s-storeName');
+    const reviewsEnEl = document.getElementById('s-reviewsEnabled');
 
     const payload = {
       ...currentSettings,
@@ -3567,6 +3629,7 @@ async function renderSettings(el) {
       facebookPixelId: pixelIdEl ? pixelIdEl.value.trim() : currentSettings.facebookPixelId,
       facebookPixelEnabled: pixelEnEl ? pixelEnEl.value === 'true' : currentSettings.facebookPixelEnabled,
       storeName: storeNameEl ? storeNameEl.value.trim() : currentSettings.storeName,
+      reviewsEnabled: reviewsEnEl ? reviewsEnEl.value === 'true' : (currentSettings.reviewsEnabled !== false),
     };
 
     const saveBtns = el.querySelectorAll('.settings-save-btn');

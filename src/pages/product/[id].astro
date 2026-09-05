@@ -1,6 +1,7 @@
 ---
 import Layout from "../../layouts/Layout.astro";
 import defaultProducts from "../../data/products.json";
+import defaultSettings from "../../data/settings.json";
 import { env } from "cloudflare:workers";
 
 // SSR: fetch product from KV at request time
@@ -58,6 +59,19 @@ try {
         );
     }
 } catch {}
+
+let storeSettings = defaultSettings as any;
+try {
+    const kv = (env as any)?.STORE_KV;
+    if (kv) {
+        const s = await kv.get("settings:config", "json");
+        if (s) storeSettings = { ...defaultSettings, ...s };
+    }
+} catch {}
+
+const isReviewsActive =
+    storeSettings.reviewsEnabled !== false &&
+    String(p.showReviews || "").toLowerCase() !== "no";
 
 const totalReviewsCount = initialReviews.length > 0 ? initialReviews.length : (parseInt(p.reviews || "0") || 0);
 const avgReviewsRating = initialReviews.length > 0
@@ -148,13 +162,20 @@ const avgReviewsRating = initialReviews.length > 0
             }
             <div class="prod-info">
                 <h1 class="prod-title">{p.title}</h1>
-                <a href="#reviews-section" class="prod-rating" style="text-decoration:none; cursor:pointer;" title="Voir les avis clients">
-                    <div class="stars">★★★★★</div>
-                    <span class="rating-count" id="header-reviews-count">({totalReviewsCount} avis)</span>
-                    <span class="rating-badge"
-                        ><i class="fa fa-circle-check"></i> Vendeur Vérifié</span
-                    >
-                </a>
+                {
+                    isReviewsActive ? (
+                        <a href="#reviews-section" class="prod-rating" style="text-decoration:none; cursor:pointer;" title="Voir les avis clients">
+                            <div class="stars">★★★★★</div>
+                            <span class="rating-count" id="header-reviews-count">({totalReviewsCount} avis)</span>
+                            <span class="rating-badge"><i class="fa fa-circle-check"></i> Vendeur Vérifié</span>
+                        </a>
+                    ) : (
+                        <div class="prod-rating">
+                            <div class="stars">★★★★★</div>
+                            <span class="rating-badge"><i class="fa fa-circle-check"></i> Vendeur Vérifié</span>
+                        </div>
+                    )
+                }
                 <div
                     class="price-row"
                     style="margin-bottom: 10px; align-items: center;"
@@ -519,100 +540,104 @@ const avgReviewsRating = initialReviews.length > 0
         }
 
         {/* Customer Reviews Section */}
-        <section class="prod-reviews-section" id="reviews-section">
-            <div class="reviews-container">
-                <div class="reviews-header">
-                    <div>
-                        <h2 class="reviews-section-title">
-                            <i class="fa-solid fa-comments" style="color: var(--blue, #2563eb); margin-right: 10px;"></i> Avis Clients Vérifiés
-                        </h2>
-                        <p class="reviews-section-sub">
-                            Témoignages et retours authentiques de clients ayant reçu leur commande.
-                        </p>
-                    </div>
-                    <button class="btn-write-review" id="openReviewModalBtn" type="button">
-                        <i class="fa-solid fa-pen-to-square"></i> Donner mon avis
-                    </button>
-                </div>
+        {
+            isReviewsActive && (
+                <section class="prod-reviews-section" id="reviews-section">
+                    <div class="reviews-container">
+                        <div class="reviews-header">
+                            <div>
+                                <h2 class="reviews-section-title">
+                                    <i class="fa-solid fa-comments" style="color: var(--blue, #2563eb); margin-right: 10px;"></i> Avis Clients Vérifiés
+                                </h2>
+                                <p class="reviews-section-sub">
+                                    Témoignages et retours authentiques de clients ayant reçu leur commande.
+                                </p>
+                            </div>
+                            <button class="btn-write-review" id="openReviewModalBtn" type="button">
+                                <i class="fa-solid fa-pen-to-square"></i> Donner mon avis
+                            </button>
+                        </div>
 
-                <!-- Rating Summary Box -->
-                <div class="reviews-summary-card">
-                    <div class="summary-score-col">
-                        <div class="score-number" id="store-rating-score">{avgReviewsRating}</div>
-                        <div class="stars-gold" style="font-size: 20px; color: #f59e0b; margin: 4px 0;">
-                            ★★★★★
-                        </div>
-                        <div class="score-total">
-                            <span id="summary-reviews-count">{totalReviewsCount}</span> avis enregistrés
-                        </div>
-                        <div class="verified-store-tag">
-                            <i class="fa-solid fa-shield-check"></i> 100% Avis Authentiques
-                        </div>
-                    </div>
-                    <div class="summary-details-col" style="flex: 1; min-width: 240px;">
-                        <div style="font-weight: 700; font-size: 15px; margin-bottom: 6px; color: var(--gray-900);">
-                            Satisfaction Garantie à la Livraison
-                        </div>
-                        <p style="font-size: 13.5px; color: var(--gray-600); line-height: 1.5; margin: 0 0 12px 0;">
-                            Tous nos avis sont vérifiés par notre service client. Vous payez en espèces à la livraison après inspection de votre colis.
-                        </p>
-                        <div style="display: flex; gap: 16px; flex-wrap: wrap;">
-                            <span style="font-size: 12.5px; font-weight: 700; color: var(--green); display: flex; align-items: center; gap: 5px;">
-                                <i class="fa-solid fa-truck-fast"></i> Livraison Gratuite
-                            </span>
-                            <span style="font-size: 12.5px; font-weight: 700; color: var(--blue, #2563eb); display: flex; align-items: center; gap: 5px;">
-                                <i class="fa-solid fa-rotate-left"></i> 7 Jours Satisfait ou Remboursé
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Reviews Grid -->
-                <div class="reviews-list-grid" id="reviews-list-grid">
-                    {initialReviews.map((r: any) => (
-                        <div class="review-item-card">
-                            <div class="review-item-header">
-                                <div class="reviewer-avatar">
-                                    {r.author ? r.author.trim().charAt(0).toUpperCase() : 'C'}
+                        <!-- Rating Summary Box -->
+                        <div class="reviews-summary-card">
+                            <div class="summary-score-col">
+                                <div class="score-number" id="store-rating-score">{avgReviewsRating}</div>
+                                <div class="stars-gold" style="font-size: 20px; color: #f59e0b; margin: 4px 0;">
+                                    ★★★★★
                                 </div>
-                                <div style="flex: 1;">
-                                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                                        <strong style="font-size: 14.5px; color: var(--gray-900);">{r.author}</strong>
-                                        {r.verified !== false && (
-                                            <span class="badge-achat-verifie">
-                                                <i class="fa-solid fa-circle-check"></i> Achat Vérifié
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div style="font-size: 12px; color: var(--gray-500); margin-top: 2px;">
-                                        <i class="fa-solid fa-location-dot"></i> {COUNTRY_MAP[r.country] || r.country || ''}{r.city ? ` · ${r.city}` : ''}
-                                    </div>
+                                <div class="score-total">
+                                    <span id="summary-reviews-count">{totalReviewsCount}</span> avis enregistrés
                                 </div>
-                                <div style="font-size: 11.5px; color: var(--gray-400); white-space: nowrap;">
-                                    {r.createdAt ? new Date(r.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}
+                                <div class="verified-store-tag">
+                                    <i class="fa-solid fa-shield-check"></i> 100% Avis Authentiques
                                 </div>
                             </div>
-                            <div class="review-item-stars" style="color: #f59e0b; font-size: 14px; margin: 10px 0 6px 0;">
-                                {"★".repeat(Math.round(Number(r.rating) || 5))}
-                                {"☆".repeat(5 - Math.round(Number(r.rating) || 5))}
+                            <div class="summary-details-col" style="flex: 1; min-width: 240px;">
+                                <div style="font-weight: 700; font-size: 15px; margin-bottom: 6px; color: var(--gray-900);">
+                                    Satisfaction Garantie à la Livraison
+                                </div>
+                                <p style="font-size: 13.5px; color: var(--gray-600); line-height: 1.5; margin: 0 0 12px 0;">
+                                    Tous nos avis sont vérifiés par notre service client. Vous payez en espèces à la livraison après inspection de votre colis.
+                                </p>
+                                <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                                    <span style="font-size: 12.5px; font-weight: 700; color: var(--green); display: flex; align-items: center; gap: 5px;">
+                                        <i class="fa-solid fa-truck-fast"></i> Livraison Gratuite
+                                    </span>
+                                    <span style="font-size: 12.5px; font-weight: 700; color: var(--blue, #2563eb); display: flex; align-items: center; gap: 5px;">
+                                        <i class="fa-solid fa-rotate-left"></i> 7 Jours Satisfait ou Remboursé
+                                    </span>
+                                </div>
                             </div>
-                            {r.title && <h4 style="font-size: 14px; font-weight: 700; color: var(--gray-900); margin: 0 0 6px 0;">{r.title}</h4>}
-                            <p style="font-size: 13.5px; color: var(--gray-700); line-height: 1.55; margin: 0;">{r.content}</p>
                         </div>
-                    ))}
-                </div>
 
-                <!-- Empty State (if no published reviews yet) -->
-                <div id="reviews-empty-box" style={initialReviews.length === 0 ? "display: block;" : "display: none;"} class="reviews-empty-state">
-                    <div style="font-size: 32px; color: #f59e0b; margin-bottom: 8px;"><i class="fa-regular fa-star"></i></div>
-                    <h3 style="font-size: 16px; font-weight: 700; color: var(--gray-900); margin-bottom: 4px;">Soyez le premier à donner votre avis !</h3>
-                    <p style="font-size: 13px; color: var(--gray-600); margin-bottom: 14px;">Vous avez commandé cet article ? Partagez votre expérience avec nos clients.</p>
-                    <button class="btn-write-review" id="emptyWriteReviewBtn" type="button" style="font-size: 13px; padding: 8px 16px;">
-                        <i class="fa-solid fa-pen-to-square"></i> Écrire le premier avis
-                    </button>
-                </div>
-            </div>
-        </section>
+                        <!-- Reviews Grid -->
+                        <div class="reviews-list-grid" id="reviews-list-grid">
+                            {initialReviews.map((r: any) => (
+                                <div class="review-item-card">
+                                    <div class="review-item-header">
+                                        <div class="reviewer-avatar">
+                                            {r.author ? r.author.trim().charAt(0).toUpperCase() : 'C'}
+                                        </div>
+                                        <div style="flex: 1;">
+                                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                                <strong style="font-size: 14.5px; color: var(--gray-900);">{r.author}</strong>
+                                                {r.verified !== false && (
+                                                    <span class="badge-achat-verifie">
+                                                        <i class="fa-solid fa-circle-check"></i> Achat Vérifié
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div style="font-size: 12px; color: var(--gray-500); margin-top: 2px;">
+                                                <i class="fa-solid fa-location-dot"></i> {COUNTRY_MAP[r.country] || r.country || ''}{r.city ? ` · ${r.city}` : ''}
+                                            </div>
+                                        </div>
+                                        <div style="font-size: 11.5px; color: var(--gray-400); white-space: nowrap;">
+                                            {r.createdAt ? new Date(r.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}
+                                        </div>
+                                    </div>
+                                    <div class="review-item-stars" style="color: #f59e0b; font-size: 14px; margin: 10px 0 6px 0;">
+                                        {"★".repeat(Math.round(Number(r.rating) || 5))}
+                                        {"☆".repeat(5 - Math.round(Number(r.rating) || 5))}
+                                    </div>
+                                    {r.title && <h4 style="font-size: 14px; font-weight: 700; color: var(--gray-900); margin: 0 0 6px 0;">{r.title}</h4>}
+                                    <p style="font-size: 13.5px; color: var(--gray-700); line-height: 1.55; margin: 0;">{r.content}</p>
+                                </div>
+                            ))}
+                        </div>
+
+                        <!-- Empty State (if no published reviews yet) -->
+                        <div id="reviews-empty-box" style={initialReviews.length === 0 ? "display: block;" : "display: none;"} class="reviews-empty-state">
+                            <div style="font-size: 32px; color: #f59e0b; margin-bottom: 8px;"><i class="fa-regular fa-star"></i></div>
+                            <h3 style="font-size: 16px; font-weight: 700; color: var(--gray-900); margin-bottom: 4px;">Soyez le premier à donner votre avis !</h3>
+                            <p style="font-size: 13px; color: var(--gray-600); margin-bottom: 14px;">Vous avez commandé cet article ? Partagez votre expérience avec nos clients.</p>
+                            <button class="btn-write-review" id="emptyWriteReviewBtn" type="button" style="font-size: 13px; padding: 8px 16px;">
+                                <i class="fa-solid fa-pen-to-square"></i> Écrire le premier avis
+                            </button>
+                        </div>
+                    </div>
+                </section>
+            )
+        }
     </main>
 
     <div class="modal" id="modal-confirm">
@@ -636,59 +661,63 @@ const avgReviewsRating = initialReviews.length > 0
     </div>
 
     <!-- Storefront Customer Review Submission Modal -->
-    <div class="review-modal-overlay" id="customerReviewModal">
-        <div class="review-modal-box">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
-                <h3 style="margin: 0; font-size: 18px; font-weight: 800; color: var(--gray-900); display: flex; align-items: center; gap: 8px;">
-                    <i class="fa-solid fa-star" style="color: #f59e0b;"></i> Donner votre avis
-                </h3>
-                <button type="button" id="closeCustRevModal" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--gray-400);">&times;</button>
+    {
+        isReviewsActive && (
+            <div class="review-modal-overlay" id="customerReviewModal">
+                <div class="review-modal-box">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+                        <h3 style="margin: 0; font-size: 18px; font-weight: 800; color: var(--gray-900); display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-star" style="color: #f59e0b;"></i> Donner votre avis
+                        </h3>
+                        <button type="button" id="closeCustRevModal" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--gray-400);">&times;</button>
+                    </div>
+                    <form id="storefrontReviewForm">
+                        <div style="margin-bottom: 14px;">
+                            <label style="display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 5px; color: var(--gray-900);">Votre Nom Complet *</label>
+                            <input type="text" id="sr-author" class="form-control" required placeholder="Ex: Jean Kouassi" style="width: 100%; border-radius: 10px; padding: 10px 14px;" />
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+                            <div>
+                                <label style="display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 5px; color: var(--gray-900);">Ville / Commune *</label>
+                                <input type="text" id="sr-city" class="form-control" required placeholder="Ex: Abidjan - Cocody" style="width: 100%; border-radius: 10px; padding: 10px 14px;" />
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 5px; color: var(--gray-900);">Pays *</label>
+                                <select id="sr-country" class="form-control" style="width: 100%; border-radius: 10px; padding: 10px 14px;">
+                                    {Object.entries(COUNTRY_MAP).map(([code, name]) => (
+                                        <option value={code}>{name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                        <div style="margin-bottom: 14px;">
+                            <label style="display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 5px; color: var(--gray-900);">Note de satisfaction *</label>
+                            <div id="sr-star-picker" style="display: flex; gap: 8px; font-size: 26px; color: #f59e0b; cursor: pointer;">
+                                <span data-star="1">★</span>
+                                <span data-star="2">★</span>
+                                <span data-star="3">★</span>
+                                <span data-star="4">★</span>
+                                <span data-star="5">★</span>
+                            </div>
+                            <input type="hidden" id="sr-rating" value="5" />
+                        </div>
+                        <div style="margin-bottom: 14px;">
+                            <label style="display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 5px; color: var(--gray-900);">Titre de l'avis (Optionnel)</label>
+                            <input type="text" id="sr-title" class="form-control" placeholder="Ex: Reçu très rapidement, excellente qualité !" style="width: 100%; border-radius: 10px; padding: 10px 14px;" />
+                        </div>
+                        <div style="margin-bottom: 18px;">
+                            <label style="display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 5px; color: var(--gray-900);">Votre Commentaire *</label>
+                            <textarea id="sr-content" class="form-control" rows="3" required placeholder="Expliquez ce qui vous a plu..." style="width: 100%; border-radius: 10px; padding: 10px 14px; resize: vertical;"></textarea>
+                        </div>
+                        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                            <button type="button" id="cancelCustRevBtn" class="btn btn-ghost" style="padding: 10px 16px; border-radius: 10px; cursor: pointer;">Annuler</button>
+                            <button type="submit" id="submitCustRevBtn" class="btn-write-review" style="padding: 10px 20px;">Publier mon avis</button>
+                        </div>
+                    </form>
+                </div>
             </div>
-            <form id="storefrontReviewForm">
-                <div style="margin-bottom: 14px;">
-                    <label style="display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 5px; color: var(--gray-900);">Votre Nom Complet *</label>
-                    <input type="text" id="sr-author" class="form-control" required placeholder="Ex: Jean Kouassi" style="width: 100%; border-radius: 10px; padding: 10px 14px;" />
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
-                    <div>
-                        <label style="display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 5px; color: var(--gray-900);">Ville / Commune *</label>
-                        <input type="text" id="sr-city" class="form-control" required placeholder="Ex: Abidjan" style="width: 100%; border-radius: 10px; padding: 10px 14px;" />
-                    </div>
-                    <div>
-                        <label style="display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 5px; color: var(--gray-900);">Pays *</label>
-                        <select id="sr-country" class="form-control" style="width: 100%; border-radius: 10px; padding: 10px 14px;">
-                            {Object.entries(COUNTRY_MAP).map(([code, name]) => (
-                                <option value={code}>{name}</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-                <div style="margin-bottom: 14px;">
-                    <label style="display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 5px; color: var(--gray-900);">Votre Note *</label>
-                    <div id="sr-star-picker" style="display: flex; gap: 6px; font-size: 26px; color: #f59e0b; cursor: pointer; user-select: none;">
-                        <span data-star="1">★</span>
-                        <span data-star="2">★</span>
-                        <span data-star="3">★</span>
-                        <span data-star="4">★</span>
-                        <span data-star="5">★</span>
-                    </div>
-                    <input type="hidden" id="sr-rating" value="5" />
-                </div>
-                <div style="margin-bottom: 14px;">
-                    <label style="display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 5px; color: var(--gray-900);">Titre de votre avis</label>
-                    <input type="text" id="sr-title" class="form-control" placeholder="Ex: Très bon produit, conforme" style="width: 100%; border-radius: 10px; padding: 10px 14px;" />
-                </div>
-                <div style="margin-bottom: 18px;">
-                    <label style="display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 5px; color: var(--gray-900);">Votre Commentaire *</label>
-                    <textarea id="sr-content" class="form-control" rows="3" required placeholder="Expliquez ce qui vous a plu..." style="width: 100%; border-radius: 10px; padding: 10px 14px; resize: vertical;"></textarea>
-                </div>
-                <div style="display: flex; justify-content: flex-end; gap: 10px;">
-                    <button type="button" id="cancelCustRevBtn" class="btn btn-ghost" style="padding: 10px 16px; border-radius: 10px; cursor: pointer;">Annuler</button>
-                    <button type="submit" id="submitCustRevBtn" class="btn-write-review" style="padding: 10px 20px;">Publier mon avis</button>
-                </div>
-            </form>
-        </div>
-    </div>
+        )
+    }
 
     <div class="sticky-bar">
         <a class="sticky-order" href="#orderFormBlock"
@@ -703,8 +732,9 @@ const avgReviewsRating = initialReviews.length > 0
     </div>
 </Layout>
 
-<script is:inline define:vars={{ productData: p }}>
+<script is:inline define:vars={{ productData: p, isReviewsActive }}>
     window.productData = productData;
+    window.isReviewsActive = isReviewsActive;
 </script>
 <script>
     document.addEventListener("DOMContentLoaded", () => {
@@ -1095,6 +1125,8 @@ const avgReviewsRating = initialReviews.length > 0
         }
 
         // ── Reviews Live Hydration & Customer Submission ──
+        if (!window.isReviewsActive) return;
+
         const loadReviews = async () => {
             try {
                 const prodId = String(p.id || "").toLowerCase();
