@@ -710,12 +710,13 @@ const cleanDesc = (p.description || "")
         let lastAbandonedStr = "";
 
         const getUTMParams = () => {
+            const urlParams = new URLSearchParams(window.location.search);
             return {
-                utm_source: sessionStorage.getItem("utm_source") || "",
-                utm_medium: sessionStorage.getItem("utm_medium") || "",
-                utm_campaign: sessionStorage.getItem("utm_campaign") || "",
-                utm_term: sessionStorage.getItem("utm_term") || "",
-                utm_content: sessionStorage.getItem("utm_content") || "",
+                utm_source: sessionStorage.getItem("utm_source") || urlParams.get("utm_source") || urlParams.get("source") || "",
+                utm_medium: sessionStorage.getItem("utm_medium") || urlParams.get("utm_medium") || urlParams.get("medium") || "",
+                utm_campaign: sessionStorage.getItem("utm_campaign") || urlParams.get("utm_campaign") || urlParams.get("campaign") || urlParams.get("campaign_name") || "",
+                utm_term: sessionStorage.getItem("utm_term") || urlParams.get("utm_term") || urlParams.get("adset") || "",
+                utm_content: sessionStorage.getItem("utm_content") || urlParams.get("utm_content") || urlParams.get("ad") || urlParams.get("ad_name") || urlParams.get("ad_id") || urlParams.get("creative") || "",
             };
         };
 

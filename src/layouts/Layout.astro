@@ -73,14 +73,37 @@ const fbPixelEnabled = settings.facebookPixelEnabled !== false && Boolean(fbPixe
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   </noscript>
 
-  <!-- UTM Capture -->
+  <!-- UTM & Ad Campaign Capture -->
   <script is:inline>
     (function () {
       try {
         var search = window.location.search;
         var params = new URLSearchParams(search);
-        var utms = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
-        utms.forEach(function (k) { if (params.get(k)) sessionStorage.setItem(k, params.get(k)); });
+        var standardUtms = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
+        standardUtms.forEach(function (k) {
+          if (params.get(k)) sessionStorage.setItem(k, params.get(k).trim());
+        });
+        // Support common ad platform aliases
+        var campaignAlias = params.get('campaign') || params.get('campaign_name') || params.get('campaign_id');
+        if (campaignAlias && !sessionStorage.getItem('utm_campaign')) {
+          sessionStorage.setItem('utm_campaign', campaignAlias.trim());
+        }
+        var adAlias = params.get('ad') || params.get('ad_name') || params.get('ad_id') || params.get('creative');
+        if (adAlias && !sessionStorage.getItem('utm_content')) {
+          sessionStorage.setItem('utm_content', adAlias.trim());
+        }
+        var sourceAlias = params.get('source');
+        if (sourceAlias && !sessionStorage.getItem('utm_source')) {
+          sessionStorage.setItem('utm_source', sourceAlias.trim());
+        }
+        var termAlias = params.get('adset') || params.get('adset_name') || params.get('adset_id');
+        if (termAlias && !sessionStorage.getItem('utm_term')) {
+          sessionStorage.setItem('utm_term', termAlias.trim());
+        }
+        var mediumAlias = params.get('medium');
+        if (mediumAlias && !sessionStorage.getItem('utm_medium')) {
+          sessionStorage.setItem('utm_medium', mediumAlias.trim());
+        }
       } catch (e) { }
     })();
   </script>

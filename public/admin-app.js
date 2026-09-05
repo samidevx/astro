@@ -188,6 +188,200 @@ async function renderDashboard(el) {
     });
     const countryList = Object.values(countryMap).sort((a, b) => b.total - a.total);
 
+    // ── Campaign & Ad Attribution Analysis ───────────────────
+    const productAttributionMap = {};
+    const globalCampaignMap = {};
+    const globalAdMap = {};
+    let trackedOrdersCount = 0;
+
+    completed.forEach(o => {
+      const pRaw = (o.produit || 'Unknown Product').trim();
+      const pTitle = pRaw.split(' (')[0].trim();
+      const pCode = (o.code || '').trim();
+      const prodKey = pTitle || 'Unknown';
+
+      const matchedCatalogProduct = products.find(p => {
+        if (p.id && o.productId && String(p.id) === String(o.productId)) return true;
+        if (p.code && pCode && p.code.toLowerCase() === pCode.toLowerCase()) return true;
+        if (p.title && (p.title.toLowerCase() === pTitle.toLowerCase() || pTitle.toLowerCase().includes(p.title.toLowerCase()) || p.title.toLowerCase().includes(pTitle.toLowerCase()))) return true;
+        return false;
+      });
+
+      const featuredImage = matchedCatalogProduct?.featuredImage || '';
+      const productCode = pCode || matchedCatalogProduct?.code || '—';
+
+      const rawCampaign = (o.utm_campaign || o.campaign || '').trim();
+      const rawAd = (o.utm_content || o.ad || o.ad_name || o.creative || '').trim();
+      const rawSource = (o.utm_source || o.source || '').trim();
+
+      const campaignName = rawCampaign || 'Direct / Organic';
+      const adName = rawAd || (rawCampaign ? 'General Campaign (No Ad Tag)' : 'Direct / No Ad Tag');
+      const isTracked = !!(rawCampaign || rawAd || rawSource);
+      if (isTracked) trackedOrdersCount++;
+
+      const orderRevenue = Number(o.total) || 0;
+      const orderQty = Number(o.quantity) || 1;
+
+      if (!productAttributionMap[prodKey]) {
+        productAttributionMap[prodKey] = {
+          title: pTitle,
+          code: productCode,
+          image: featuredImage,
+          totalPurchases: 0,
+          totalRevenue: 0,
+          totalQty: 0,
+          campaigns: {},
+          ads: {},
+        };
+      }
+
+      const prodAtt = productAttributionMap[prodKey];
+      prodAtt.totalPurchases += 1;
+      prodAtt.totalRevenue += orderRevenue;
+      prodAtt.totalQty += orderQty;
+
+      if (!prodAtt.campaigns[campaignName]) {
+        prodAtt.campaigns[campaignName] = {
+          name: campaignName,
+          purchases: 0,
+          revenue: 0,
+          qty: 0,
+          source: rawSource,
+          isTracked: !!rawCampaign,
+          abandoned: 0
+        };
+      }
+      prodAtt.campaigns[campaignName].purchases += 1;
+      prodAtt.campaigns[campaignName].revenue += orderRevenue;
+      prodAtt.campaigns[campaignName].qty += orderQty;
+
+      if (!prodAtt.ads[adName]) {
+        prodAtt.ads[adName] = {
+          name: adName,
+          purchases: 0,
+          revenue: 0,
+          qty: 0,
+          campaign: rawCampaign,
+          source: rawSource,
+          isTracked: !!rawAd,
+          abandoned: 0
+        };
+      }
+      prodAtt.ads[adName].purchases += 1;
+      prodAtt.ads[adName].revenue += orderRevenue;
+      prodAtt.ads[adName].qty += orderQty;
+
+      if (!globalCampaignMap[campaignName]) {
+        globalCampaignMap[campaignName] = {
+          name: campaignName,
+          purchases: 0,
+          revenue: 0,
+          qty: 0,
+          source: rawSource,
+          isTracked: !!rawCampaign,
+          products: {},
+          abandoned: 0
+        };
+      }
+      globalCampaignMap[campaignName].purchases += 1;
+      globalCampaignMap[campaignName].revenue += orderRevenue;
+      globalCampaignMap[campaignName].qty += orderQty;
+      globalCampaignMap[campaignName].products[pTitle] = (globalCampaignMap[campaignName].products[pTitle] || 0) + 1;
+
+      if (!globalAdMap[adName]) {
+        globalAdMap[adName] = {
+          name: adName,
+          purchases: 0,
+          revenue: 0,
+          qty: 0,
+          campaign: rawCampaign,
+          source: rawSource,
+          isTracked: !!rawAd,
+          products: {},
+          abandoned: 0
+        };
+      }
+      globalAdMap[adName].purchases += 1;
+      globalAdMap[adName].revenue += orderRevenue;
+      globalAdMap[adName].qty += orderQty;
+      globalAdMap[adName].products[pTitle] = (globalAdMap[adName].products[pTitle] || 0) + 1;
+    });
+
+    filteredOrders.filter(o => o.status === 'ABANDONED').forEach(o => {
+      const pRaw = (o.produit || 'Unknown Product').trim();
+      const pTitle = pRaw.split(' (')[0].trim();
+      const rawCampaign = (o.utm_campaign || o.campaign || '').trim();
+      const rawAd = (o.utm_content || o.ad || o.ad_name || o.creative || '').trim();
+      const campaignName = rawCampaign || 'Direct / Organic';
+      const adName = rawAd || (rawCampaign ? 'General Campaign (No Ad Tag)' : 'Direct / No Ad Tag');
+
+      if (productAttributionMap[pTitle]) {
+        if (productAttributionMap[pTitle].campaigns[campaignName]) {
+          productAttributionMap[pTitle].campaigns[campaignName].abandoned = (productAttributionMap[pTitle].campaigns[campaignName].abandoned || 0) + 1;
+        }
+        if (productAttributionMap[pTitle].ads[adName]) {
+          productAttributionMap[pTitle].ads[adName].abandoned = (productAttributionMap[pTitle].ads[adName].abandoned || 0) + 1;
+        }
+      }
+      if (globalCampaignMap[campaignName]) {
+        globalCampaignMap[campaignName].abandoned = (globalCampaignMap[campaignName].abandoned || 0) + 1;
+      }
+      if (globalAdMap[adName]) {
+        globalAdMap[adName].abandoned = (globalAdMap[adName].abandoned || 0) + 1;
+      }
+    });
+
+    const productAttributionList = Object.values(productAttributionMap).map(item => {
+      const campList = Object.values(item.campaigns).sort((a, b) => {
+        if (b.purchases !== a.purchases) return b.purchases - a.purchases;
+        if (b.isTracked !== a.isTracked) return (b.isTracked ? 1 : 0) - (a.isTracked ? 1 : 0);
+        return b.revenue - a.revenue;
+      });
+
+      const topCampaign = campList[0] || null;
+
+      const adList = Object.values(item.ads).sort((a, b) => {
+        if (b.purchases !== a.purchases) return b.purchases - a.purchases;
+        if (b.isTracked !== a.isTracked) return (b.isTracked ? 1 : 0) - (a.isTracked ? 1 : 0);
+        return b.revenue - a.revenue;
+      });
+
+      const topAd = adList[0] || null;
+
+      return {
+        ...item,
+        topCampaign,
+        topAd,
+        campaignsList: campList,
+        adsList: adList
+      };
+    }).sort((a, b) => b.totalPurchases - a.totalPurchases);
+
+    const sortedGlobalCampaigns = Object.values(globalCampaignMap).sort((a, b) => {
+      if (b.purchases !== a.purchases) return b.purchases - a.purchases;
+      return b.revenue - a.revenue;
+    });
+    const topOverallCampaign = sortedGlobalCampaigns.find(c => c.isTracked) || sortedGlobalCampaigns[0] || null;
+
+    const sortedGlobalAds = Object.values(globalAdMap).sort((a, b) => {
+      if (b.purchases !== a.purchases) return b.purchases - a.purchases;
+      return b.revenue - a.revenue;
+    });
+    const topOverallAd = sortedGlobalAds.find(a => a.isTracked) || sortedGlobalAds[0] || null;
+
+    const trackedPercent = completed.length ? Math.round((trackedOrdersCount / completed.length) * 100) : 0;
+
+    window._currentAttribution = {
+      productList: productAttributionList,
+      campaignsList: sortedGlobalCampaigns,
+      adsList: sortedGlobalAds,
+      topOverallCampaign,
+      topOverallAd,
+      trackedPercent,
+      trackedOrdersCount,
+      completedCount: completed.length
+    };
+
     // Chart Data Preparation (Daily Trend)
     let labels = [], revData = [], ordData = [];
     if (startVal && endVal) {
@@ -343,6 +537,73 @@ async function renderDashboard(el) {
         </div>
       </div>
 
+      <!-- Campaign & Ad Attribution by Product Section -->
+      <div class="table-card" style="margin-bottom: 24px;">
+        <div class="table-header" style="flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(236, 72, 153, 0.2)); border: 1px solid rgba(99, 102, 241, 0.3); display: flex; align-items: center; justify-content: center; font-size: 16px; color: var(--accent);">
+              <i class="fa fa-bullhorn"></i>
+            </div>
+            <div>
+              <span class="table-title" style="margin: 0; display: block; font-size: 15px; font-weight: 700;">
+                Campaign & Ad Attribution by Product
+              </span>
+              <small style="color: var(--muted); font-size: 12px;">
+                Identifies which marketing campaign or ad creative gathers the most purchases for each product.
+              </small>
+            </div>
+          </div>
+
+          <!-- Quick Attribution Highlights -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+            ${topOverallCampaign ? `
+              <div style="display: flex; align-items: center; gap: 6px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); padding: 4px 10px; border-radius: 8px; font-size: 11px;">
+                <span style="color: var(--muted); text-transform: uppercase; font-weight: 700; font-size: 10px;"><i class="fa fa-bullseye" style="color:#818cf8;"></i> Top Campaign:</span>
+                <strong style="color: #a5b4fc; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${topOverallCampaign.name}">${topOverallCampaign.name}</strong>
+                <span class="badge badge-blue" style="font-size: 10px; padding: 1px 6px;">${topOverallCampaign.purchases} sales</span>
+              </div>
+            ` : ''}
+
+            ${topOverallAd ? `
+              <div style="display: flex; align-items: center; gap: 6px; background: rgba(236, 72, 153, 0.08); border: 1px solid rgba(236, 72, 153, 0.25); padding: 4px 10px; border-radius: 8px; font-size: 11px;">
+                <span style="color: var(--muted); text-transform: uppercase; font-weight: 700; font-size: 10px;"><i class="fa fa-rectangle-ad" style="color:#f472b6;"></i> Top Ad:</span>
+                <strong style="color: #f472b6; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${topOverallAd.name}">${topOverallAd.name}</strong>
+                <span class="badge" style="background:rgba(236,72,153,0.18);color:#f472b6;font-size: 10px; padding: 1px 6px;">${topOverallAd.purchases} sales</span>
+              </div>
+            ` : ''}
+
+            <div style="display: flex; align-items: center; gap: 6px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); padding: 4px 10px; border-radius: 8px; font-size: 11px;">
+              <span style="color: var(--muted); text-transform: uppercase; font-weight: 700; font-size: 10px;"><i class="fa fa-chart-line" style="color:var(--green);"></i> Tracked:</span>
+              <strong style="color: var(--green);">${trackedPercent}%</strong>
+              <small style="color: var(--muted);">(${trackedOrdersCount}/${completed.length})</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Controls Toolbar: Tabs & Search Filter -->
+        <div style="padding: 12px 20px; background: rgba(255, 255, 255, 0.015); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div class="att-tab-group" id="attTabGroup">
+            <button class="att-tab-btn active" data-tab="product">
+              <i class="fa fa-boxes-stacked"></i> By Product (${productAttributionList.length})
+            </button>
+            <button class="att-tab-btn" data-tab="campaigns">
+              <i class="fa fa-bullseye"></i> Top Campaigns (${sortedGlobalCampaigns.length})
+            </button>
+            <button class="att-tab-btn" data-tab="ads">
+              <i class="fa fa-rectangle-ad"></i> Top Ads / Creatives (${sortedGlobalAds.length})
+            </button>
+          </div>
+
+          <div style="position: relative; min-width: 220px;">
+            <i class="fa fa-search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--muted);"></i>
+            <input type="text" id="attSearchInput" placeholder="Filter product, campaign, or ad..." style="width: 100%; padding: 6px 10px 6px 28px; font-size: 12px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border); border-radius: 8px; color: #fff; outline: none; font-family: inherit;">
+          </div>
+        </div>
+
+        <!-- Dynamic Attribution Content Container -->
+        <div id="attDynamicContainer" style="overflow-x: auto;"></div>
+      </div>
+
       <!-- Recent Orders Stream -->
       <div class="table-card" style="margin:0;">
         <div class="table-header">
@@ -448,6 +709,9 @@ async function renderDashboard(el) {
         });
       }
     }
+
+    // Initialize Attribution Analytics Section
+    initAttributionSection();
   };
 
   // Attach Preset Button Handlers
@@ -494,6 +758,411 @@ async function renderDashboard(el) {
   updateDashboard();
 }
 
+// ── Attribution Analytics Component ──────────────────────
+function initAttributionSection() {
+  let currentTab = 'product';
+  let currentQuery = '';
+
+  const container = document.getElementById('attDynamicContainer');
+  const tabGroup = document.getElementById('attTabGroup');
+  const searchInput = document.getElementById('attSearchInput');
+  if (!container) return;
+
+  const updateView = () => {
+    const data = window._currentAttribution || { productList: [], campaignsList: [], adsList: [] };
+
+    if (currentTab === 'product') {
+      const query = currentQuery.toLowerCase().trim();
+      const filtered = data.productList.filter(p => {
+        if (!query) return true;
+        return (p.title || '').toLowerCase().includes(query) ||
+               (p.code || '').toLowerCase().includes(query) ||
+               (p.topCampaign?.name || '').toLowerCase().includes(query) ||
+               (p.topAd?.name || '').toLowerCase().includes(query);
+      });
+
+      if (!filtered.length) {
+        container.innerHTML = `
+          <div class="empty-state" style="padding: 44px 20px;">
+            <i class="fa fa-bullhorn" style="font-size: 34px; color: var(--muted); margin-bottom: 10px;"></i>
+            <p style="margin: 0; font-weight: 700; color: #fff; font-size: 15px;">No product purchase attribution found</p>
+            <p style="margin: 6px 0 0 0; font-size: 12.5px; color: var(--muted); max-width: 480px; margin-inline: auto; line-height: 1.5;">
+              ${currentQuery ? 'No products or campaigns match your search query.' : 'No completed orders recorded in the selected time frame. As customers purchase from your ads with UTM parameters (?utm_campaign=...&utm_content=...), the top campaign and ad for each product will appear here.'}
+            </p>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = `
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th style="width: 28%;">Product</th>
+              <th style="width: 28%;">Top Campaign (Most Purchases)</th>
+              <th style="width: 26%;">Top Ad / Creative</th>
+              <th style="width: 18%; text-align: right;">Sales & Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filtered.map(p => {
+              const topCamp = p.topCampaign;
+              const topAd = p.topAd;
+              const campPct = p.totalPurchases > 0 && topCamp ? Math.round((topCamp.purchases / p.totalPurchases) * 100) : 0;
+              const otherCamps = p.campaignsList.length - 1;
+              const otherAds = p.adsList.length - 1;
+
+              return `
+                <tr>
+                  <td>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                      <img src="${p.image || 'https://placehold.co/42x42'}" alt="" style="width: 42px; height: 42px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border); flex-shrink: 0;" onerror="this.src='https://placehold.co/42x42'">
+                      <div style="min-width: 0;">
+                        <strong style="font-size: 13.5px; color: #fff; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px;" title="${p.title}">
+                          ${p.title}
+                        </strong>
+                        <div style="display: flex; gap: 6px; align-items: center; margin-top: 3px;">
+                          <span style="font-family: monospace; font-size: 11px; color: var(--muted); background: rgba(255,255,255,0.05); padding: 1px 6px; border-radius: 4px;">
+                            ${p.code || 'N/A'}
+                          </span>
+                          <span style="font-size: 11px; color: var(--green); font-weight: 600;">
+                            ${p.totalPurchases} order${p.totalPurchases > 1 ? 's' : ''}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    ${topCamp ? `
+                      <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                          <span class="${topCamp.isTracked ? 'att-badge-campaign' : 'att-badge-organic'}" title="${topCamp.name}">
+                            <i class="fa ${topCamp.isTracked ? 'fa-bullseye' : 'fa-globe'}"></i>
+                            <span>${topCamp.name}</span>
+                          </span>
+                          ${otherCamps > 0 ? `<span style="font-size: 10px; color: var(--muted); background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 6px;" title="${otherCamps} other campaign(s) drove purchases">+${otherCamps} more</span>` : ''}
+                        </div>
+                        <div style="font-size: 11.5px; color: var(--muted); display: flex; gap: 6px; align-items: center;">
+                          <strong style="color: var(--green); font-weight: 700;">${topCamp.purchases} purchase${topCamp.purchases > 1 ? 's' : ''}</strong>
+                          <span style="color: var(--muted2);">(${campPct}% share)</span>
+                          <span style="color: var(--muted2);">·</span>
+                          <span style="color: #cbd5e1; font-weight: 600;">${fmtPrice(topCamp.revenue)} CFA</span>
+                        </div>
+                      </div>
+                    ` : `<span style="color: var(--muted); font-size: 12px;">No campaign data</span>`}
+                  </td>
+                  <td>
+                    ${topAd ? `
+                      <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                          <span class="${topAd.isTracked ? 'att-badge-ad' : 'att-badge-organic'}" title="${topAd.name}">
+                            <i class="fa ${topAd.isTracked ? 'fa-rectangle-ad' : 'fa-tag'}"></i>
+                            <span>${topAd.name}</span>
+                          </span>
+                          ${otherAds > 0 ? `<span style="font-size: 10px; color: var(--muted); background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 6px;" title="${otherAds} other ad(s) drove purchases">+${otherAds} more</span>` : ''}
+                        </div>
+                        <div style="font-size: 11.5px; color: var(--muted); display: flex; gap: 6px; align-items: center;">
+                          <strong style="color: #f472b6; font-weight: 700;">${topAd.purchases} purchase${topAd.purchases > 1 ? 's' : ''}</strong>
+                          <span style="color: var(--muted2);">·</span>
+                          <span style="color: #cbd5e1; font-weight: 600;">${fmtPrice(topAd.revenue)} CFA</span>
+                        </div>
+                      </div>
+                    ` : `<span style="color: var(--muted); font-size: 12px;">No ad tracked</span>`}
+                  </td>
+                  <td style="text-align: right;">
+                    <div>
+                      <strong style="font-size: 13.5px; color: #fff;">${fmtPrice(p.totalRevenue)} CFA</strong>
+                      <div style="margin-top: 5px;">
+                        <button class="btn btn-ghost btn-sm" onclick="window._showAttributionBreakdown('${encodeURIComponent(p.title)}')" style="padding: 4px 10px; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;" title="View all campaigns and ads for this product">
+                          <i class="fa fa-chart-pie" style="color: var(--accent);"></i> Breakdown
+                        </button>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>`;
+    } else if (currentTab === 'campaigns') {
+      const query = currentQuery.toLowerCase().trim();
+      const filtered = data.campaignsList.filter(c => {
+        if (!query) return true;
+        return c.name.toLowerCase().includes(query) || (c.source || '').toLowerCase().includes(query);
+      });
+
+      if (!filtered.length) {
+        container.innerHTML = `
+          <div class="empty-state" style="padding: 44px 20px;">
+            <i class="fa fa-bullseye" style="font-size: 34px; color: var(--muted); margin-bottom: 10px;"></i>
+            <p style="margin: 0; font-weight: 700; color: #fff; font-size: 15px;">No campaigns found</p>
+            <p style="margin: 6px 0 0 0; font-size: 12.5px; color: var(--muted);">No campaigns recorded for this period.</p>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = `
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th style="width: 60px;">Rank</th>
+              <th>Campaign Name</th>
+              <th>Platform / Source</th>
+              <th>Purchases</th>
+              <th>Abandoned</th>
+              <th>Revenue</th>
+              <th>Products Driven</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filtered.map((c, idx) => {
+              const rankClass = idx === 0 ? 'att-rank-1' : (idx === 1 ? 'att-rank-2' : (idx === 2 ? 'att-rank-3' : 'att-rank-default'));
+              const prodList = Object.entries(c.products || {}).map(([p, cnt]) => `${p} (${cnt})`).join(', ');
+              return `
+                <tr>
+                  <td><span class="${rankClass}">#${idx + 1}</span></td>
+                  <td>
+                    <span class="${c.isTracked ? 'att-badge-campaign' : 'att-badge-organic'}" title="${c.name}">
+                      <i class="fa ${c.isTracked ? 'fa-bullhorn' : 'fa-globe'}"></i> ${c.name}
+                    </span>
+                  </td>
+                  <td><span class="badge badge-blue">${c.source || 'Direct'}</span></td>
+                  <td><strong style="color: var(--green); font-size: 13.5px;">${c.purchases}</strong></td>
+                  <td><span style="color: var(--muted); font-size: 12px;">${c.abandoned || 0}</span></td>
+                  <td><strong style="color: var(--text);">${fmtPrice(c.revenue)} CFA</strong></td>
+                  <td style="max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--muted);" title="${prodList}">
+                    ${prodList || '—'}
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>`;
+    } else if (currentTab === 'ads') {
+      const query = currentQuery.toLowerCase().trim();
+      const filtered = data.adsList.filter(a => {
+        if (!query) return true;
+        return a.name.toLowerCase().includes(query) || (a.campaign || '').toLowerCase().includes(query);
+      });
+
+      if (!filtered.length) {
+        container.innerHTML = `
+          <div class="empty-state" style="padding: 44px 20px;">
+            <i class="fa fa-rectangle-ad" style="font-size: 34px; color: var(--muted); margin-bottom: 10px;"></i>
+            <p style="margin: 0; font-weight: 700; color: #fff; font-size: 15px;">No ad creatives found</p>
+            <p style="margin: 6px 0 0 0; font-size: 12.5px; color: var(--muted);">No ad creatives recorded for this period.</p>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = `
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th style="width: 60px;">Rank</th>
+              <th>Ad / Creative Name</th>
+              <th>Parent Campaign</th>
+              <th>Purchases</th>
+              <th>Abandoned</th>
+              <th>Revenue</th>
+              <th>Products Driven</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filtered.map((a, idx) => {
+              const rankClass = idx === 0 ? 'att-rank-1' : (idx === 1 ? 'att-rank-2' : (idx === 2 ? 'att-rank-3' : 'att-rank-default'));
+              const prodList = Object.entries(a.products || {}).map(([p, cnt]) => `${p} (${cnt})`).join(', ');
+              return `
+                <tr>
+                  <td><span class="${rankClass}">#${idx + 1}</span></td>
+                  <td>
+                    <span class="${a.isTracked ? 'att-badge-ad' : 'att-badge-organic'}" title="${a.name}">
+                      <i class="fa ${a.isTracked ? 'fa-rectangle-ad' : 'fa-tag'}"></i> ${a.name}
+                    </span>
+                  </td>
+                  <td><span style="font-size: 12px; color: var(--muted);">${a.campaign || 'Direct / None'}</span></td>
+                  <td><strong style="color: #f472b6; font-size: 13.5px;">${a.purchases}</strong></td>
+                  <td><span style="color: var(--muted); font-size: 12px;">${a.abandoned || 0}</span></td>
+                  <td><strong style="color: var(--text);">${fmtPrice(a.revenue)} CFA</strong></td>
+                  <td style="max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--muted);" title="${prodList}">
+                    ${prodList || '—'}
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>`;
+    }
+  };
+
+  if (tabGroup) {
+    tabGroup.querySelectorAll('.att-tab-btn').forEach(btn => {
+      btn.onclick = () => {
+        tabGroup.querySelectorAll('.att-tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentTab = btn.getAttribute('data-tab');
+        updateView();
+      };
+    });
+  }
+
+  if (searchInput) {
+    searchInput.oninput = (e) => {
+      currentQuery = e.target.value;
+      updateView();
+    };
+  }
+
+  updateView();
+}
+
+window._showAttributionBreakdown = function(encodedTitle) {
+  const title = decodeURIComponent(encodedTitle);
+  const data = window._currentAttribution?.productList?.find(p => p.title === title);
+  if (!data) {
+    toast('Product attribution details not found', 'error');
+    return;
+  }
+
+  const oldModal = document.getElementById('attribution-breakdown-modal');
+  if (oldModal) oldModal.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'attribution-breakdown-modal';
+  modal.className = 'modal-overlay open';
+  modal.innerHTML = `
+    <div class="modal-box" style="max-width: 860px; width: 95%;">
+      <div class="modal-head" style="background: rgba(255,255,255,0.02); padding: 20px 28px;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <img src="${data.image || 'https://placehold.co/48x48'}" alt="" style="width: 48px; height: 48px; border-radius: 10px; object-fit: cover; border: 1px solid var(--border);" onerror="this.src='https://placehold.co/48x48'">
+          <div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <h2 style="font-size: 17px; font-weight: 700; margin: 0; color: #fff;">${data.title}</h2>
+              <span style="font-family: monospace; background: rgba(255,255,255,0.06); padding: 2px 7px; border-radius: 6px; font-size: 11.5px; color: var(--muted);">${data.code || 'N/A'}</span>
+            </div>
+            <p style="font-size: 12px; color: var(--muted); margin: 4px 0 0 0;">
+              Marketing Attribution Breakdown: All campaigns and ad creatives driving purchases for this product.
+            </p>
+          </div>
+        </div>
+        <button class="modal-close" id="closeAttBreakdownModal" style="font-size: 24px; padding: 4px 8px;">&times;</button>
+      </div>
+
+      <div style="padding: 14px 28px; background: rgba(255,255,255,0.015); border-bottom: 1px solid var(--border); display: flex; gap: 16px; flex-wrap: wrap;">
+        <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); padding: 6px 14px; border-radius: 8px;">
+          <div style="font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: 700;">Total Purchases</div>
+          <div style="font-size: 16px; font-weight: 800; color: var(--green);">${data.totalPurchases} orders</div>
+        </div>
+        <div style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2); padding: 6px 14px; border-radius: 8px;">
+          <div style="font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: 700;">Total Revenue</div>
+          <div style="font-size: 16px; font-weight: 800; color: var(--accent);">${fmtPrice(data.totalRevenue)} CFA</div>
+        </div>
+        <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); padding: 6px 14px; border-radius: 8px;">
+          <div style="font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: 700;">Campaigns Active</div>
+          <div style="font-size: 16px; font-weight: 800; color: var(--blue);">${data.campaignsList.length}</div>
+        </div>
+        <div style="background: rgba(236, 72, 153, 0.1); border: 1px solid rgba(236, 72, 153, 0.2); padding: 6px 14px; border-radius: 8px;">
+          <div style="font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: 700;">Ad Creatives Active</div>
+          <div style="font-size: 16px; font-weight: 800; color: #f472b6;">${data.adsList.length}</div>
+        </div>
+      </div>
+
+      <div class="modal-body" style="padding: 24px 28px; max-height: 65vh; overflow-y: auto; display: flex; flex-direction: column; gap: 24px;">
+        <!-- Campaigns Section -->
+        <div>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <h3 style="font-size: 13.5px; font-weight: 700; color: var(--accent); margin: 0; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 8px;">
+              <i class="fa fa-bullhorn"></i> Campaigns Driving Purchases (${data.campaignsList.length})
+            </h3>
+            <small style="color: var(--muted);">Ranked by purchases</small>
+          </div>
+          <table class="admin-table" style="background: rgba(255,255,255,0.015); border-radius: 10px;">
+            <thead>
+              <tr>
+                <th>Campaign</th>
+                <th>Source</th>
+                <th>Purchases</th>
+                <th>Sales Share</th>
+                <th>Revenue</th>
+                <th>Abandoned</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.campaignsList.map(c => {
+                const pct = data.totalPurchases > 0 ? Math.round((c.purchases / data.totalPurchases) * 100) : 0;
+                return `
+                  <tr>
+                    <td>
+                      <span class="${c.isTracked ? 'att-badge-campaign' : 'att-badge-organic'}">
+                        <i class="fa ${c.isTracked ? 'fa-bullseye' : 'fa-globe'}"></i> ${c.name}
+                      </span>
+                    </td>
+                    <td><span class="badge badge-blue">${c.source || 'Direct'}</span></td>
+                    <td><strong style="color: var(--green); font-size: 13.5px;">${c.purchases}</strong></td>
+                    <td><span class="badge" style="background:rgba(16,185,129,0.12);color:var(--green);">${pct}%</span></td>
+                    <td><strong>${fmtPrice(c.revenue)} CFA</strong></td>
+                    <td><span style="color: var(--muted);">${c.abandoned || 0}</span></td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Ads Section -->
+        <div>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <h3 style="font-size: 13.5px; font-weight: 700; color: #f472b6; margin: 0; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 8px;">
+              <i class="fa fa-rectangle-ad"></i> Ad Creatives Driving Purchases (${data.adsList.length})
+            </h3>
+            <small style="color: var(--muted);">Ranked by purchases</small>
+          </div>
+          <table class="admin-table" style="background: rgba(255,255,255,0.015); border-radius: 10px;">
+            <thead>
+              <tr>
+                <th>Ad / Creative</th>
+                <th>Parent Campaign</th>
+                <th>Purchases</th>
+                <th>Sales Share</th>
+                <th>Revenue</th>
+                <th>Abandoned</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.adsList.map(a => {
+                const pct = data.totalPurchases > 0 ? Math.round((a.purchases / data.totalPurchases) * 100) : 0;
+                return `
+                  <tr>
+                    <td>
+                      <span class="${a.isTracked ? 'att-badge-ad' : 'att-badge-organic'}">
+                        <i class="fa ${a.isTracked ? 'fa-rectangle-ad' : 'fa-tag'}"></i> ${a.name}
+                      </span>
+                    </td>
+                    <td><span style="font-size: 12px; color: var(--muted);">${a.campaign || 'Direct / None'}</span></td>
+                    <td><strong style="color: #f472b6; font-size: 13.5px;">${a.purchases}</strong></td>
+                    <td><span class="badge" style="background:rgba(236,72,153,0.12);color:#f472b6;">${pct}%</span></td>
+                    <td><strong>${fmtPrice(a.revenue)} CFA</strong></td>
+                    <td><span style="color: var(--muted);">${a.abandoned || 0}</span></td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="padding: 16px 28px; background: rgba(255,255,255,0.015);">
+        <button class="btn btn-ghost" id="closeAttBreakdownBtn" type="button">Close</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+  const closeModal = () => modal.remove();
+  modal.querySelector('#closeAttBreakdownModal').onclick = closeModal;
+  modal.querySelector('#closeAttBreakdownBtn').onclick = closeModal;
+  modal.onclick = (e) => { if (e.target === modal) closeModal(); };
+};
+
 // ── Products ─────────────────────────────────────────────
 function getProductOrders(product, allOrders) {
   if (!allOrders || !Array.isArray(allOrders)) return [];
@@ -522,6 +1191,18 @@ function showProductOrdersModal(product, productOrders) {
   const completedList = productOrders.filter(o => o.status === 'COMPLETED');
   const abandonedCount = productOrders.filter(o => o.status === 'ABANDONED').length;
   const totalRevenue = completedList.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+
+  // Marketing attribution for this product
+  const campSales = {};
+  const adSales = {};
+  completedList.forEach(o => {
+    const c = (o.utm_campaign || o.campaign || '').trim();
+    const a = (o.utm_content || o.ad || o.ad_name || o.creative || '').trim();
+    if (c) campSales[c] = (campSales[c] || 0) + 1;
+    if (a) adSales[a] = (adSales[a] || 0) + 1;
+  });
+  const topCampEntry = Object.entries(campSales).sort((a,b) => b[1] - a[1])[0];
+  const topAdEntry = Object.entries(adSales).sort((a,b) => b[1] - a[1])[0];
 
   const STATUS_PRECEDENCE = { 'COMPLETED': 1, 'PENDING': 2, 'ABANDONED': 3 };
   const sortedOrders = [...productOrders].sort((a, b) => {
@@ -567,6 +1248,23 @@ function showProductOrdersModal(product, productOrders) {
             <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 700;">Total Revenue</div>
             <div style="font-size: 18px; font-weight: 800; color: var(--accent);">${fmtPrice(totalRevenue)} ${product.currency || 'CFA'}</div>
           </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+          ${topCampEntry ? `
+            <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); padding: 6px 12px; border-radius: 8px;">
+              <div style="font-size: 10px; color: #a5b4fc; text-transform: uppercase; font-weight: 700;"><i class="fa fa-bullseye"></i> Top Campaign</div>
+              <div style="font-size: 12px; font-weight: 700; color: #fff; max-width: 140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${topCampEntry[0]}">${topCampEntry[0]}</div>
+              <div style="font-size: 10.5px; color: var(--green); font-weight: 600;">${topCampEntry[1]} purchases</div>
+            </div>
+          ` : ''}
+          ${topAdEntry ? `
+            <div style="background: rgba(236, 72, 153, 0.08); border: 1px solid rgba(236, 72, 153, 0.25); padding: 6px 12px; border-radius: 8px;">
+              <div style="font-size: 10px; color: #f472b6; text-transform: uppercase; font-weight: 700;"><i class="fa fa-rectangle-ad"></i> Top Ad</div>
+              <div style="font-size: 12px; font-weight: 700; color: #fff; max-width: 140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${topAdEntry[0]}">${topAdEntry[0]}</div>
+              <div style="font-size: 10.5px; color: #f472b6; font-weight: 600;">${topAdEntry[1]} purchases</div>
+            </div>
+          ` : ''}
         </div>
       </div>
 
@@ -1181,14 +1879,17 @@ function showOrderDetailModal(order) {
             </div>
           </div>
 
-          ${(order.couleur || order.taille || order.utm_source) ? `
+          ${(order.couleur || order.taille || order.utm_source || order.utm_campaign || order.utm_content || order.utm_medium || order.utm_term) ? `
             <div style="background: rgba(255,255,255,0.015); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px;">
-              <h3 style="font-size: 12px; text-transform: uppercase; font-weight: 700; color: var(--muted); margin: 0 0 8px 0;"><i class="fa fa-info-circle" style="margin-right: 4px;"></i> Tracking & Options</h3>
-              <div style="font-size: 12px; color: var(--muted); display: flex; gap: 16px; flex-wrap: wrap;">
+              <h3 style="font-size: 12px; text-transform: uppercase; font-weight: 700; color: var(--accent); margin: 0 0 10px 0;"><i class="fa fa-bullhorn" style="margin-right: 6px;"></i> Marketing & Attribution Tracking</h3>
+              <div style="font-size: 12px; color: var(--muted); display: flex; gap: 16px; flex-wrap: wrap; align-items: center;">
                 ${order.couleur ? `<span>Color: <strong>${order.couleur}</strong></span>` : ''}
                 ${order.taille ? `<span>Size: <strong>${order.taille}</strong></span>` : ''}
-                ${order.utm_source ? `<span>Source: <code>${order.utm_source}</code></span>` : ''}
-                ${order.utm_campaign ? `<span>Campaign: <code>${order.utm_campaign}</code></span>` : ''}
+                ${order.utm_source ? `<span>Source: <code style="color:var(--blue);">${order.utm_source}</code></span>` : ''}
+                ${order.utm_campaign ? `<span>Campaign: <code style="color:#a5b4fc; font-weight:700;">${order.utm_campaign}</code></span>` : ''}
+                ${order.utm_content ? `<span>Ad Creative: <code style="color:#f472b6; font-weight:700;">${order.utm_content}</code></span>` : ''}
+                ${order.utm_medium ? `<span>Medium: <code>${order.utm_medium}</code></span>` : ''}
+                ${order.utm_term ? `<span>Term: <code>${order.utm_term}</code></span>` : ''}
               </div>
             </div>
           ` : ''}
