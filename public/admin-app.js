@@ -1601,6 +1601,7 @@ async function renderProducts(el) {
           <td style="display:flex;gap:6px;flex-wrap:wrap;" onclick="event.stopPropagation();">
             <a href="/product/${p.id}" target="_blank" class="btn btn-ghost btn-sm" onclick="event.stopPropagation();" title="View product page"><i class="fa fa-eye"></i></a>
             <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); window._editProduct('${p.id}')" title="Edit product"><i class="fa fa-pen"></i></button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); window._duplicateProduct('${p.id}')" title="Duplicate product"><i class="fa-solid fa-copy"></i></button>
             <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); window._deleteProduct('${p.id}')" title="Delete product"><i class="fa fa-trash"></i></button>
           </td>
         </tr>`;
@@ -1623,6 +1624,53 @@ async function renderProducts(el) {
   };
 
   window._editProduct = id => navigate('/admin/products/edit/' + id);
+
+  window._duplicateProduct = async (id) => {
+    const target = products.find(x => x.id === id);
+    if (!target) {
+      toast('Product not found', 'error');
+      return;
+    }
+
+    // Generate unique slug/ID
+    const baseId = target.id.replace(/-copy(-\d+)?$/, '');
+    let newId = `${baseId}-copy`;
+    let counter = 1;
+    while (products.some(p => p.id === newId)) {
+      counter++;
+      newId = `${baseId}-copy-${counter}`;
+    }
+
+    // Generate unique SKU code
+    let newCode = target.code ? `${target.code}-CPY` : `COD${Math.floor(10000 + Math.random() * 90000)}`;
+    if (products.some(p => p.code === newCode)) {
+      newCode = `${target.code || 'COD'}-${Math.floor(1000 + Math.random() * 9000)}`;
+    }
+
+    const duplicated = {
+      ...JSON.parse(JSON.stringify(target)),
+      id: newId,
+      title: `${target.title} (Copy)`,
+      code: newCode,
+      createdAt: new Date().toISOString()
+    };
+
+    try {
+      const res = await api.createProduct(duplicated);
+      if (res.ok) {
+        products.unshift(duplicated);
+        filtered = [...products];
+        toast(`Product "${duplicated.title}" duplicated successfully!`);
+        render();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast(err.error || 'Failed to duplicate product', 'error');
+      }
+    } catch (e) {
+      toast('Network error duplicating product', 'error');
+    }
+  };
+
   window._deleteProduct = async id => {
     if (await confirmDialog('Delete this product? This cannot be undone.')) {
       const r = await api.deleteProduct(id);
@@ -1655,7 +1703,10 @@ function renderProductForm(el, p, id) {
   el.innerHTML = `
     <div class="admin-topbar">
       <h1>${isEdit ? 'Edit Product' : 'New Product'}</h1>
-      <button class="btn btn-ghost" id="backBtn"><i class="fa fa-arrow-left"></i>Back</button>
+      <div style="display:flex; gap:8px;">
+        ${isEdit ? `<button class="btn btn-ghost" id="dupFormBtn" type="button" title="Duplicate this product"><i class="fa-solid fa-copy"></i> Duplicate</button>` : ''}
+        <button class="btn btn-ghost" id="backBtn"><i class="fa fa-arrow-left"></i>Back</button>
+      </div>
     </div>
     <div class="table-card" style="padding:0;">
       <form id="productForm" style="padding:28px;">
@@ -1737,6 +1788,51 @@ function renderProductForm(el, p, id) {
 
   el.querySelector('#backBtn').onclick = () => navigate('/admin/products');
   el.querySelector('#cancelBtn').onclick = () => navigate('/admin/products');
+
+  const dupFormBtn = el.querySelector('#dupFormBtn');
+  if (dupFormBtn && p) {
+    dupFormBtn.onclick = async () => {
+      dupFormBtn.disabled = true;
+      dupFormBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Duplicating...';
+      try {
+        const allProducts = await api.getProducts();
+        const baseId = p.id.replace(/-copy(-\d+)?$/, '');
+        let newId = `${baseId}-copy`;
+        let counter = 1;
+        while (allProducts.some(x => x.id === newId)) {
+          counter++;
+          newId = `${baseId}-copy-${counter}`;
+        }
+        let newCode = p.code ? `${p.code}-CPY` : `COD${Math.floor(10000 + Math.random() * 90000)}`;
+        if (allProducts.some(x => x.code === newCode)) {
+          newCode = `${p.code || 'COD'}-${Math.floor(1000 + Math.random() * 9000)}`;
+        }
+
+        const duplicated = {
+          ...JSON.parse(JSON.stringify(p)),
+          id: newId,
+          title: `${p.title} (Copy)`,
+          code: newCode,
+          createdAt: new Date().toISOString()
+        };
+
+        const res = await api.createProduct(duplicated);
+        if (res.ok) {
+          toast(`Product "${duplicated.title}" duplicated!`);
+          navigate('/admin/products/edit/' + duplicated.id);
+        } else {
+          const err = await res.json().catch(() => ({}));
+          toast(err.error || 'Failed to duplicate product', 'error');
+          dupFormBtn.disabled = false;
+          dupFormBtn.innerHTML = '<i class="fa-solid fa-copy"></i> Duplicate';
+        }
+      } catch (e) {
+        toast('Network error duplicating product', 'error');
+        dupFormBtn.disabled = false;
+        dupFormBtn.innerHTML = '<i class="fa-solid fa-copy"></i> Duplicate';
+      }
+    };
+  }
 
   el.querySelector('#productForm').onsubmit = async e => {
     e.preventDefault();
