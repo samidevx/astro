@@ -31,6 +31,19 @@ export const api = {
   async updateSettings(data) {
     return fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
   },
+  async getReviews() {
+    const r = await fetch('/api/reviews');
+    return r.ok ? r.json() : [];
+  },
+  async createReview(data) {
+    return fetch('/api/reviews', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+  },
+  async updateReview(id, data) {
+    return fetch(`/api/reviews/${encodeURIComponent(id)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+  },
+  async deleteReview(id) {
+    return fetch(`/api/reviews/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  },
   async logout() {
     await fetch('/api/auth/logout', { method: 'POST' });
     window.location.href = '/admin/login';

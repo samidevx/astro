@@ -100,7 +100,7 @@ function router() {
   if (path === '/admin/orders') renderOrders(main);
   else if (path === '/admin/settings') renderSettings(main);
   else if (path === '/admin/customers') renderCustomers(main);
-  else if (path === '/admin/reviews') renderPlaceholderPage(main, 'Product Reviews', 'fa-star', 'Moderate and publish customer testimonials, star ratings, and feedback.');
+  else if (path === '/admin/reviews') renderReviews(main);
   else if (path === '/admin/delivery') renderPlaceholderPage(main, 'Delivery & Logistics', 'fa-truck-fast', 'Track shipping carriers, local delivery hubs, and dispatch statuses.');
   else if (path === '/admin/team') renderPlaceholderPage(main, 'Team Management', 'fa-user-group', 'Manage administrator permissions, staff access, and role assignments.');
   else if (path === '/admin/ai') renderPlaceholderPage(main, 'AI Agents', 'fa-wand-magic-sparkles', 'Automate marketing copywriting, customer live assistance, and dynamic product recommendations.');
@@ -2452,7 +2452,703 @@ function showCustomerModal(customer) {
   const closeModal = () => modal.remove();
   modal.querySelector('#closeCustomerModal').onclick = closeModal;
   modal.querySelector('#closeCustModalBtn').onclick = closeModal;
+}
+
+// ── Product Reviews CRM ──────────────────────────────────
+function renderStarsHtml(rating) {
+  const r = Math.round(Number(rating) || 5);
+  let stars = '';
+  for (let i = 1; i <= 5; i++) {
+    stars += `<i class="fa-solid fa-star ${i <= r ? 'star-gold' : 'star-muted'}"></i>`;
+  }
+  return `<span class="review-stars">${stars}</span>`;
+}
+
+function getReviewStatusBadge(status) {
+  const s = String(status || 'PUBLISHED').toUpperCase();
+  if (s === 'PUBLISHED') {
+    return `<span class="badge badge-green"><i class="fa-solid fa-circle-check"></i> Published</span>`;
+  }
+  if (s === 'PENDING') {
+    return `<span class="badge badge-orange"><i class="fa-solid fa-clock"></i> Pending Moderation</span>`;
+  }
+  return `<span class="badge badge-gray"><i class="fa-solid fa-eye-slash"></i> Hidden</span>`;
+}
+
+async function renderReviews(el) {
+  el.innerHTML = `
+    <div class="admin-topbar">
+      <div>
+        <h1 style="margin:0 0 4px 0;">Product Reviews</h1>
+        <p style="font-size:13px; color:var(--muted); margin:0;">Moderate and publish customer testimonials, star ratings, and feedback.</p>
+      </div>
+      <div class="topbar-actions">
+        <a href="/" target="_blank" class="topbar-icon-btn" title="View Storefront"><i class="fa fa-arrow-up-right-from-square"></i></a>
+        <button class="topbar-icon-btn theme-toggle-btn" title="Toggle Theme"><i class="fa-solid fa-moon"></i></button>
+        <button class="topbar-icon-btn" title="Notifications"><i class="fa fa-bell"></i></button>
+      </div>
+    </div>
+    <div style="padding: 60px 20px; text-align: center; color: var(--muted);">
+      <i class="fa-solid fa-spinner fa-spin" style="font-size: 28px; color: var(--accent); margin-bottom: 12px;"></i>
+      <p style="font-size: 14px; font-weight: 600;">Loading customer reviews & product catalog...</p>
+    </div>
+  `;
+
+  let reviews = [];
+  let products = [];
+
+  try {
+    const [rData, pData] = await Promise.all([
+      api.getReviews(),
+      api.getProducts()
+    ]);
+    reviews = Array.isArray(rData) ? rData : [];
+    products = Array.isArray(pData) ? pData : [];
+  } catch (e) {
+    console.error('Error fetching reviews:', e);
+  }
+
+  // Calculate Metrics
+  const totalReviews = reviews.length;
+  const publishedCount = reviews.filter(r => r.status === 'PUBLISHED').length;
+  const pendingCount = reviews.filter(r => r.status === 'PENDING').length;
+  const hiddenCount = reviews.filter(r => r.status === 'HIDDEN').length;
+  const avgRatingNum = totalReviews ? (reviews.reduce((acc, r) => acc + (Number(r.rating) || 5), 0) / totalReviews) : 5.0;
+  const avgRating = avgRatingNum.toFixed(1);
+
+  // Star Distribution
+  const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+  reviews.forEach(r => {
+    const star = Math.max(1, Math.min(5, Math.round(Number(r.rating) || 5)));
+    counts[star] = (counts[star] || 0) + 1;
+  });
+
+  const positivePercent = totalReviews ? Math.round(((counts[5] + counts[4]) / totalReviews) * 100) : 100;
+
+  // Build product options for filtering
+  const productOptions = products.map(p => `<option value="${p.id}">${p.title}</option>`).join('');
+
+  el.innerHTML = `
+    <div class="admin-topbar">
+      <div>
+        <h1 style="margin:0 0 4px 0;">Product Reviews</h1>
+        <p style="font-size:13px; color:var(--muted); margin:0;">Moderate and publish customer testimonials, star ratings, and feedback.</p>
+      </div>
+      <div class="topbar-actions">
+        <a href="/" target="_blank" class="topbar-icon-btn" title="View Storefront"><i class="fa fa-arrow-up-right-from-square"></i></a>
+        <button class="topbar-icon-btn theme-toggle-btn" title="Toggle Theme"><i class="fa-solid fa-moon"></i></button>
+        <button class="topbar-icon-btn" title="Notifications"><i class="fa fa-bell"></i></button>
+      </div>
+    </div>
+
+    <!-- 4 Overview KPI Cards -->
+    <div class="kpi-grid" style="margin-bottom: 24px;">
+      <div class="kpi-card">
+        <div class="kpi-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
+          <i class="fa-solid fa-star"></i>
+        </div>
+        <div class="kpi-label">Total Reviews</div>
+        <div class="kpi-value">${totalReviews}</div>
+        <div class="kpi-sub">Across all store products</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon" style="background: rgba(147, 51, 234, 0.1); color: var(--accent);">
+          <i class="fa-solid fa-award"></i>
+        </div>
+        <div class="kpi-label">Average Store Rating</div>
+        <div class="kpi-value" style="display:flex; align-items:center; gap:8px;">
+          ${avgRating} <span style="font-size:16px; color:#f59e0b;">${renderStarsHtml(avgRatingNum)}</span>
+        </div>
+        <div class="kpi-sub" style="color:var(--green); font-weight:600;"><i class="fa-solid fa-thumbs-up"></i> ${positivePercent}% positive satisfaction</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon" style="background: rgba(16, 185, 129, 0.1); color: var(--green);">
+          <i class="fa-solid fa-circle-check"></i>
+        </div>
+        <div class="kpi-label">Published & Live</div>
+        <div class="kpi-value" style="color:var(--green);">${publishedCount}</div>
+        <div class="kpi-sub">${totalReviews ? Math.round((publishedCount / totalReviews) * 100) : 0}% of all testimonials</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon" style="background: ${pendingCount > 0 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(100, 116, 139, 0.1)'}; color: ${pendingCount > 0 ? '#f59e0b' : 'var(--muted)'};">
+          <i class="fa-solid fa-clock"></i>
+        </div>
+        <div class="kpi-label">Pending Moderation</div>
+        <div class="kpi-value" style="color: ${pendingCount > 0 ? '#f59e0b' : 'var(--text)'};">${pendingCount}</div>
+        <div class="kpi-sub">${pendingCount > 0 ? 'Action required for approval' : 'All reviews moderated'}</div>
+      </div>
+    </div>
+
+    <!-- Rating Distribution & Sentiment Card -->
+    <div class="rating-breakdown-card" style="margin-bottom: 24px;">
+      <div style="display: flex; gap: 32px; flex-wrap: wrap; align-items: center;">
+        <div style="text-align: center; min-width: 170px; border-right: 1px solid var(--border); padding-right: 32px;">
+          <div style="font-size: 48px; font-weight: 800; color: var(--text); line-height: 1;">${avgRating}</div>
+          <div style="margin: 8px 0;">${renderStarsHtml(avgRatingNum)}</div>
+          <div style="font-size: 13px; color: var(--muted); font-weight: 600;">Based on ${totalReviews} reviews</div>
+          <div style="margin-top: 10px; display: inline-flex; align-items: center; gap: 5px; background: rgba(16, 185, 129, 0.1); color: #10b981; padding: 4px 10px; border-radius: 9999px; font-size: 11.5px; font-weight: 700;">
+            <i class="fa-solid fa-shield-check"></i> ${positivePercent}% Verified Satisfaction
+          </div>
+        </div>
+
+        <div style="flex: 1; min-width: 260px;">
+          ${[5, 4, 3, 2, 1].map(stars => {
+            const count = counts[stars] || 0;
+            const pct = totalReviews ? Math.round((count / totalReviews) * 100) : 0;
+            return `
+              <div class="rating-bar-row" data-stars="${stars}" title="Filter by ${stars} stars">
+                <span style="width: 48px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
+                  ${stars} <i class="fa-solid fa-star star-gold" style="font-size: 11px;"></i>
+                </span>
+                <div class="rating-bar-track">
+                  <div class="rating-bar-fill" style="width: ${pct}%;"></div>
+                </div>
+                <span style="width: 40px; text-align: right; color: var(--muted); font-size: 12px; font-weight: 600;">${pct}%</span>
+                <span style="width: 35px; text-align: right; color: var(--text); font-size: 12px; font-weight: 700;">(${count})</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- Table Toolbar: Search, Filters & Actions -->
+    <div class="table-card">
+      <div class="card-toolbar" style="flex-wrap: wrap; gap: 12px; padding: 18px 22px;">
+        <div class="search-wrap">
+          <i class="fa fa-magnifying-glass"></i>
+          <input type="text" class="search-input" id="rSearch" placeholder="Search reviews, authors, products..." style="width: 240px;">
+        </div>
+
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <select class="filter-select" id="rProductFilter">
+            <option value="">All Products</option>
+            ${productOptions}
+          </select>
+
+          <select class="filter-select" id="rRatingFilter">
+            <option value="">All Ratings</option>
+            <option value="5">5 Stars ★★★★★</option>
+            <option value="4">4 Stars ★★★★☆</option>
+            <option value="3">3 Stars ★★★☆☆</option>
+            <option value="2">2 Stars ★★☆☆☆</option>
+            <option value="1">1 Star ★☆☆☆☆</option>
+          </select>
+
+          <select class="filter-select" id="rStatusFilter">
+            <option value="">All Statuses</option>
+            <option value="PUBLISHED">Published</option>
+            <option value="PENDING">Pending Moderation</option>
+            <option value="HIDDEN">Hidden</option>
+          </select>
+
+          <select class="filter-select" id="rSortFilter">
+            <option value="newest">Newest First</option>
+            <option value="highest">Highest Rating</option>
+            <option value="lowest">Lowest Rating</option>
+            <option value="oldest">Oldest First</option>
+          </select>
+        </div>
+
+        <div style="margin-left: auto; display: flex; gap: 8px;">
+          <button class="btn btn-ghost" id="exportReviewsCsv">
+            <i class="fa-solid fa-file-csv"></i> Export CSV
+          </button>
+          <button class="btn btn-primary" id="addReviewBtn">
+            <i class="fa-solid fa-plus"></i> Add Review
+          </button>
+        </div>
+      </div>
+
+      <!-- Reviews Table Container -->
+      <div class="table-responsive">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th style="width: 220px;">Reviewer</th>
+              <th style="width: 220px;">Product</th>
+              <th style="width: 140px;">Rating</th>
+              <th>Review / Testimonial</th>
+              <th style="width: 120px;">Date</th>
+              <th style="width: 130px;">Status</th>
+              <th style="text-align: right; width: 140px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="reviewsTableBody">
+            <!-- Dynamic rows -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  let filteredReviews = [...reviews];
+
+  const renderTable = () => {
+    const tbody = document.getElementById('reviewsTableBody');
+    if (!tbody) return;
+
+    if (filteredReviews.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="7" style="text-align:center; padding: 48px 20px; color:var(--muted);">
+            <div style="font-size:36px; margin-bottom:12px; color:var(--muted2);"><i class="fa-regular fa-star"></i></div>
+            <p style="font-size:15px; font-weight:700; color:var(--text); margin:0 0 6px 0;">No reviews found</p>
+            <p style="font-size:13px; margin:0 0 16px 0;">Try adjusting your search queries or filter selections.</p>
+            <button class="btn btn-primary btn-sm" id="emptyAddReviewBtn"><i class="fa fa-plus"></i> Add First Review</button>
+          </td>
+        </tr>
+      `;
+      const btn = document.getElementById('emptyAddReviewBtn');
+      if (btn) btn.onclick = () => showReviewModal(null, products, onReviewSaved);
+      return;
+    }
+
+    tbody.innerHTML = filteredReviews.map(r => {
+      const initial = (r.author || 'C').trim().charAt(0).toUpperCase();
+      const countryDisplay = COUNTRY_MAP[r.country] || r.country || '';
+      return `
+        <tr class="review-row" id="row-${r.id}">
+          <td>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div class="review-avatar">${initial}</div>
+              <div>
+                <div style="font-weight:700; color:var(--text); font-size:13.5px; display:flex; align-items:center; gap:6px;">
+                  ${r.author}
+                </div>
+                <div style="display:flex; align-items:center; gap:6px; margin-top:2px;">
+                  ${r.verified ? `<span class="badge-verified"><i class="fa-solid fa-check"></i> Verified</span>` : ''}
+                  ${countryDisplay ? `<span style="font-size:11.5px; color:var(--muted);">${countryDisplay}</span>` : ''}
+                  ${r.city ? `<span style="font-size:11.5px; color:var(--muted); font-weight:500;">• ${r.city}</span>` : ''}
+                </div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div style="display:flex; align-items:center; gap:10px;">
+              ${r.productImage ? `
+                <img src="${r.productImage}" alt="${r.productTitle || ''}" class="product-thumb" style="width:40px; height:40px; border-radius:8px; object-fit:cover; flex-shrink:0;">
+              ` : `
+                <div style="width:40px; height:40px; border-radius:8px; background:var(--surface2); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; color:var(--muted); flex-shrink:0;">
+                  <i class="fa-solid fa-box"></i>
+                </div>
+              `}
+              <div style="max-width:160px;">
+                <div style="font-weight:600; font-size:12.5px; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${r.productTitle || r.productId}">
+                  ${r.productTitle || r.productId}
+                </div>
+                <small style="color:var(--muted); font-size:11px; font-family:monospace;">${r.productId}</small>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div style="display:flex; align-items:center; gap:6px;">
+              ${renderStarsHtml(r.rating)}
+              <strong style="font-size:12.5px; color:var(--text);">${Number(r.rating || 5).toFixed(1)}</strong>
+            </div>
+          </td>
+          <td>
+            <div style="max-width: 380px;">
+              ${r.title ? `<strong style="font-size:13px; color:var(--text); display:block; margin-bottom:3px;">${r.title}</strong>` : ''}
+              <div style="font-size:12.5px; color:var(--muted); line-height:1.45; max-height:48px; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;">
+                ${r.content}
+              </div>
+            </div>
+          </td>
+          <td style="font-size:12px; color:var(--muted); white-space:nowrap;">
+            ${fmtDate(r.createdAt)}
+          </td>
+          <td>
+            ${getReviewStatusBadge(r.status)}
+          </td>
+          <td style="text-align:right; white-space:nowrap;">
+            <div style="display:inline-flex; gap:5px; align-items:center;">
+              ${r.status === 'PENDING' ? `
+                <button class="btn btn-sm" onclick="window._moderateReview('${r.id}', 'PUBLISHED')" style="background:#10b981; color:#fff; border:none; padding:5px 9px; font-size:11.5px;" title="Approve & Publish">
+                  <i class="fa-solid fa-check"></i>
+                </button>
+                <button class="btn btn-ghost btn-sm" onclick="window._moderateReview('${r.id}', 'HIDDEN')" style="padding:5px 9px; font-size:11.5px; color:#ef4444;" title="Hide Review">
+                  <i class="fa-solid fa-ban"></i>
+                </button>
+              ` : r.status === 'PUBLISHED' ? `
+                <button class="btn btn-ghost btn-sm" onclick="window._moderateReview('${r.id}', 'HIDDEN')" style="padding:5px 9px; font-size:11.5px; color:var(--muted);" title="Hide from Storefront">
+                  <i class="fa-solid fa-eye-slash"></i>
+                </button>
+              ` : `
+                <button class="btn btn-ghost btn-sm" onclick="window._moderateReview('${r.id}', 'PUBLISHED')" style="padding:5px 9px; font-size:11.5px; color:#10b981;" title="Publish to Storefront">
+                  <i class="fa-solid fa-eye"></i>
+                </button>
+              `}
+              <button class="btn btn-ghost btn-sm" onclick="window._editReview('${r.id}')" style="padding:5px 9px; font-size:11.5px;" title="Edit Review">
+                <i class="fa-solid fa-pen-to-square"></i>
+              </button>
+              <button class="btn btn-ghost btn-sm" onclick="window._deleteReview('${r.id}')" style="padding:5px 9px; font-size:11.5px; color:#ef4444;" title="Delete Review">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  };
+
+  const applyFilters = () => {
+    const q = (document.getElementById('rSearch')?.value || '').toLowerCase().trim();
+    const pid = document.getElementById('rProductFilter')?.value || '';
+    const rating = document.getElementById('rRatingFilter')?.value || '';
+    const status = document.getElementById('rStatusFilter')?.value || '';
+    const sort = document.getElementById('rSortFilter')?.value || 'newest';
+
+    filteredReviews = reviews.filter(r => {
+      const matchSearch = !q ||
+        (r.author && r.author.toLowerCase().includes(q)) ||
+        (r.title && r.title.toLowerCase().includes(q)) ||
+        (r.content && r.content.toLowerCase().includes(q)) ||
+        (r.productTitle && r.productTitle.toLowerCase().includes(q)) ||
+        (r.city && r.city.toLowerCase().includes(q));
+
+      const matchProduct = !pid || r.productId === pid;
+      const matchRating = !rating || Math.round(Number(r.rating)) === Number(rating);
+      const matchStatus = !status || r.status === status;
+
+      return matchSearch && matchProduct && matchRating && matchStatus;
+    });
+
+    // Sorting
+    filteredReviews.sort((a, b) => {
+      if (sort === 'highest') return (b.rating || 5) - (a.rating || 5);
+      if (sort === 'lowest') return (a.rating || 5) - (b.rating || 5);
+      if (sort === 'oldest') return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+
+    renderTable();
+  };
+
+  document.getElementById('rSearch').oninput = applyFilters;
+  document.getElementById('rProductFilter').onchange = applyFilters;
+  document.getElementById('rRatingFilter').onchange = applyFilters;
+  document.getElementById('rStatusFilter').onchange = applyFilters;
+  document.getElementById('rSortFilter').onchange = applyFilters;
+
+  // Click on Rating Breakdown Bar to filter
+  document.querySelectorAll('.rating-bar-row').forEach(row => {
+    row.onclick = () => {
+      const stars = row.getAttribute('data-stars');
+      const select = document.getElementById('rRatingFilter');
+      if (select) {
+        select.value = select.value === stars ? '' : stars;
+        applyFilters();
+      }
+    };
+  });
+
+  // Callback when a review is added or updated
+  const onReviewSaved = (savedReview) => {
+    const idx = reviews.findIndex(r => r.id === savedReview.id);
+    if (idx >= 0) {
+      reviews[idx] = savedReview;
+    } else {
+      reviews.unshift(savedReview);
+    }
+    applyFilters();
+  };
+
+  // Add Review Button
+  document.getElementById('addReviewBtn').onclick = () => {
+    showReviewModal(null, products, onReviewSaved);
+  };
+
+  // Export CSV
+  document.getElementById('exportReviewsCsv').onclick = () => {
+    const headers = ['ID', 'Author', 'City', 'Country', 'Product ID', 'Product Title', 'Rating', 'Title', 'Content', 'Verified Buyer', 'Status', 'Date'];
+    const rows = filteredReviews.map(r => [
+      r.id,
+      r.author,
+      r.city || '',
+      r.country || '',
+      r.productId,
+      r.productTitle || '',
+      r.rating,
+      r.title || '',
+      r.content || '',
+      r.verified ? 'Yes' : 'No',
+      r.status,
+      fmtDate(r.createdAt)
+    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+
+    const csv = [headers.join(','), ...rows].join('\n');
+    const a = Object.assign(document.createElement('a'), {
+      href: 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv),
+      download: `reviews_${new Date().toISOString().slice(0, 10)}.csv`
+    });
+    a.click();
+    toast('Reviews CSV exported successfully!');
+  };
+
+  // Global handlers for table actions
+  window._moderateReview = async (id, newStatus) => {
+    try {
+      const res = await api.updateReview(id, { status: newStatus });
+      if (res.ok) {
+        const item = reviews.find(r => r.id === id);
+        if (item) item.status = newStatus;
+        toast(`Review marked as ${newStatus.toLowerCase()}!`);
+        applyFilters();
+      } else {
+        toast('Failed to update review status', 'error');
+      }
+    } catch (e) {
+      toast('Network error updating review', 'error');
+    }
+  };
+
+  window._editReview = (id) => {
+    const rev = reviews.find(r => r.id === id);
+    if (rev) showReviewModal(rev, products, onReviewSaved);
+  };
+
+  window._deleteReview = async (id) => {
+    const ok = await confirmDialog('Are you sure you want to delete this customer review permanently?');
+    if (!ok) return;
+
+    try {
+      const res = await api.deleteReview(id);
+      if (res.ok) {
+        reviews = reviews.filter(r => r.id !== id);
+        toast('Review deleted successfully!');
+        applyFilters();
+      } else {
+        toast('Failed to delete review', 'error');
+      }
+    } catch (e) {
+      toast('Network error deleting review', 'error');
+    }
+  };
+
+  renderTable();
+}
+
+function showReviewModal(review = null, products = [], onSave = null) {
+  const isEdit = Boolean(review);
+  const oldModal = document.getElementById('review-form-modal');
+  if (oldModal) oldModal.remove();
+
+  let currentRating = review ? Number(review.rating) || 5 : 5;
+
+  const modal = document.createElement('div');
+  modal.id = 'review-form-modal';
+  modal.className = 'modal-overlay open';
+  modal.innerHTML = `
+    <div class="modal-box" style="max-width: 620px; width: 95%;">
+      <div class="modal-head" style="padding: 20px 26px;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="width:40px; height:40px; border-radius:12px; background:linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(217, 119, 6, 0.2)); color:#f59e0b; display:flex; align-items:center; justify-content:center; font-size:18px;">
+            <i class="fa-solid fa-star"></i>
+          </div>
+          <div>
+            <h2 style="font-size:18px; font-weight:800; margin:0; color:var(--text);">
+              ${isEdit ? 'Edit Customer Review' : 'Add Customer Review'}
+            </h2>
+            <p style="font-size:12.5px; color:var(--muted); margin:2px 0 0 0;">
+              ${isEdit ? 'Update feedback details and approval status.' : 'Manually import or add a verified testimonial.'}
+            </p>
+          </div>
+        </div>
+        <button class="modal-close" id="closeReviewModal">&times;</button>
+      </div>
+
+      <form id="reviewForm" style="padding: 24px 26px; display: flex; flex-direction: column; gap: 18px;">
+        <!-- Product Selection -->
+        <div>
+          <label class="form-label" style="font-size:12.5px; font-weight:700; color:var(--text); margin-bottom:6px; display:block;">
+            Target Product <span style="color:#ef4444;">*</span>
+          </label>
+          <select class="filter-select" id="revProductSelect" required style="width:100%; height:40px; font-size:13px;">
+            ${products.map(p => `
+              <option value="${p.id}" ${review && review.productId === p.id ? 'selected' : ''}>
+                ${p.title} (${p.currency || 'CFA'})
+              </option>
+            `).join('')}
+          </select>
+        </div>
+
+        <!-- Reviewer Name & Location -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+          <div>
+            <label class="form-label" style="font-size:12.5px; font-weight:700; color:var(--text); margin-bottom:6px; display:block;">
+              Author Full Name <span style="color:#ef4444;">*</span>
+            </label>
+            <input type="text" class="search-input" id="revAuthor" required placeholder="e.g. Aïcha Diop" value="${review ? review.author : ''}" style="width:100%;">
+          </div>
+
+          <div>
+            <label class="form-label" style="font-size:12.5px; font-weight:700; color:var(--text); margin-bottom:6px; display:block;">
+              City / Region
+            </label>
+            <input type="text" class="search-input" id="revCity" placeholder="e.g. Abidjan, Cocody" value="${review && review.city ? review.city : ''}" style="width:100%;">
+          </div>
+        </div>
+
+        <!-- Country & Rating Selection -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items:center;">
+          <div>
+            <label class="form-label" style="font-size:12.5px; font-weight:700; color:var(--text); margin-bottom:6px; display:block;">
+              Country
+            </label>
+            <select class="filter-select" id="revCountry" style="width:100%; height:40px; font-size:13px;">
+              ${Object.entries(COUNTRY_MAP).map(([code, name]) => `
+                <option value="${code}" ${review && review.country === code ? 'selected' : code === 'CI' ? 'selected' : ''}>
+                  ${name} (${code})
+                </option>
+              `).join('')}
+            </select>
+          </div>
+
+          <div>
+            <label class="form-label" style="font-size:12.5px; font-weight:700; color:var(--text); margin-bottom:6px; display:block;">
+              Star Rating <span style="color:#ef4444;">*</span>
+            </label>
+            <div id="starPickerContainer" style="display:flex; align-items:center; gap:8px; height:40px;">
+              ${[1, 2, 3, 4, 5].map(s => `
+                <i class="fa-solid fa-star star-picker-star ${s <= currentRating ? 'active' : ''}" data-value="${s}"></i>
+              `).join('')}
+              <span id="starPickerLabel" style="font-size:13px; font-weight:700; color:var(--text); margin-left:6px;">
+                ${currentRating}.0 / 5.0
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Review Headline Title -->
+        <div>
+          <label class="form-label" style="font-size:12.5px; font-weight:700; color:var(--text); margin-bottom:6px; display:block;">
+            Review Title / Headline
+          </label>
+          <input type="text" class="search-input" id="revTitle" placeholder="e.g. Très satisfait, résultats visibles dès la première semaine" value="${review && review.title ? review.title : ''}" style="width:100%;">
+        </div>
+
+        <!-- Review Content Textarea -->
+        <div>
+          <label class="form-label" style="font-size:12.5px; font-weight:700; color:var(--text); margin-bottom:6px; display:block;">
+            Review Body / Feedback Content <span style="color:#ef4444;">*</span>
+          </label>
+          <textarea id="revContent" required rows="4" style="width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:10px 14px; font-size:13px; font-family:inherit; color:var(--text); outline:none; resize:vertical;" placeholder="Write customer testimonial here...">${review ? review.content : ''}</textarea>
+        </div>
+
+        <!-- Verification & Status Row -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: center; background: var(--surface2); padding: 14px; border-radius: 12px; border: 1px solid var(--border);">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="revVerified" ${review ? (review.verified ? 'checked' : '') : 'checked'} style="width:18px; height:18px; accent-color:var(--green); cursor:pointer;">
+            <div>
+              <label for="revVerified" style="font-size:13px; font-weight:700; color:var(--text); cursor:pointer; display:block;">Verified Buyer</label>
+              <span style="font-size:11px; color:var(--muted);">Displays "Achat Vérifié" badge</span>
+            </div>
+          </div>
+
+          <div>
+            <label class="form-label" style="font-size:12px; font-weight:700; color:var(--text); margin-bottom:4px; display:block;">
+              Moderation Status
+            </label>
+            <select class="filter-select" id="revStatus" style="width:100%; font-size:12.5px;">
+              <option value="PUBLISHED" ${review && review.status === 'PUBLISHED' ? 'selected' : ''}>Published (Live)</option>
+              <option value="PENDING" ${review && review.status === 'PENDING' ? 'selected' : ''}>Pending Moderation</option>
+              <option value="HIDDEN" ${review && review.status === 'HIDDEN' ? 'selected' : ''}>Hidden</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Submit Buttons -->
+        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:8px;">
+          <button type="button" class="btn btn-ghost" id="cancelReviewBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="saveReviewSubmitBtn">
+            <i class="fa-solid fa-floppy-disk"></i> ${isEdit ? 'Save Changes' : 'Create Review'}
+          </button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  const closeModal = () => modal.remove();
+  modal.querySelector('#closeReviewModal').onclick = closeModal;
+  modal.querySelector('#cancelReviewBtn').onclick = closeModal;
   modal.onclick = (e) => { if (e.target === modal) closeModal(); };
+
+  // Interactive Star Picker
+  const stars = modal.querySelectorAll('.star-picker-star');
+  const starLabel = modal.querySelector('#starPickerLabel');
+  stars.forEach(star => {
+    star.onmouseover = () => {
+      const val = Number(star.getAttribute('data-value'));
+      stars.forEach(s => s.classList.toggle('active', Number(s.getAttribute('data-value')) <= val));
+      starLabel.textContent = `${val}.0 / 5.0`;
+    };
+    star.onmouseout = () => {
+      stars.forEach(s => s.classList.toggle('active', Number(s.getAttribute('data-value')) <= currentRating));
+      starLabel.textContent = `${currentRating}.0 / 5.0`;
+    };
+    star.onclick = () => {
+      currentRating = Number(star.getAttribute('data-value'));
+      stars.forEach(s => s.classList.toggle('active', Number(s.getAttribute('data-value')) <= currentRating));
+      starLabel.textContent = `${currentRating}.0 / 5.0`;
+    };
+  });
+
+  // Submit Handler
+  modal.querySelector('#reviewForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = modal.querySelector('#saveReviewSubmitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
+
+    const pid = modal.querySelector('#revProductSelect').value;
+    const selectedProd = products.find(p => p.id === pid);
+
+    const payload = {
+      id: review ? review.id : undefined,
+      productId: pid,
+      productTitle: selectedProd ? selectedProd.title : pid,
+      productImage: selectedProd ? (selectedProd.featuredImage || '') : '',
+      author: modal.querySelector('#revAuthor').value.trim(),
+      city: modal.querySelector('#revCity').value.trim(),
+      country: modal.querySelector('#revCountry').value,
+      rating: currentRating,
+      title: modal.querySelector('#revTitle').value.trim(),
+      content: modal.querySelector('#revContent').value.trim(),
+      verified: modal.querySelector('#revVerified').checked,
+      status: modal.querySelector('#revStatus').value,
+      createdAt: review ? review.createdAt : new Date().toISOString()
+    };
+
+    try {
+      let res;
+      if (isEdit) {
+        res = await api.updateReview(review.id, payload);
+      } else {
+        res = await api.createReview(payload);
+      }
+
+      if (res.ok) {
+        const json = await res.json();
+        toast(isEdit ? 'Review updated successfully!' : 'Review created successfully!');
+        if (onSave) onSave(json.review || payload);
+        closeModal();
+      } else {
+        toast('Failed to save review', 'error');
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> ${isEdit ? 'Save Changes' : 'Create Review'}`;
+      }
+    } catch (err) {
+      toast('Network error saving review', 'error');
+      btn.disabled = false;
+      btn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> ${isEdit ? 'Save Changes' : 'Create Review'}`;
+    }
+  };
 }
 
 // ── Settings ──────────────────────────────────────────────
