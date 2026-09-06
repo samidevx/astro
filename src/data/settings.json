@@ -6,5 +6,8 @@
   "accentColor": "#8002bb",
   "backgroundColor": "#f8f8f8",
   "fontFamily": "Cairo, sans-serif",
-  "reviewsEnabled": true
+  "reviewsEnabled": true,
+  "adSpendCFA": 50000,
+  "defaultDeliveryCostCFA": 1500,
+  "defaultDeliveryCostGNF": 25000
 }

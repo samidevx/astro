@@ -101,6 +101,7 @@ function router() {
   else if (path === '/admin/settings') renderSettings(main);
   else if (path === '/admin/customers') renderCustomers(main);
   else if (path === '/admin/reviews') renderReviews(main);
+  else if (path === '/admin/profit') renderProfitTracker(main);
   else if (path === '/admin/delivery') renderPlaceholderPage(main, 'Delivery & Logistics', 'fa-truck-fast', 'Track shipping carriers, local delivery hubs, and dispatch statuses.');
   else if (path === '/admin/team') renderPlaceholderPage(main, 'Team Management', 'fa-user-group', 'Manage administrator permissions, staff access, and role assignments.');
   else if (path === '/admin/ai') renderPlaceholderPage(main, 'AI Agents', 'fa-wand-magic-sparkles', 'Automate marketing copywriting, customer live assistance, and dynamic product recommendations.');
@@ -159,6 +160,7 @@ function renderShell(root, path) {
       items: [
         { href: '/admin', icon: 'fa-solid fa-shapes', label: 'Dashboard' },
         { href: '/admin/orders', icon: 'fa-solid fa-bag-shopping', label: 'Orders', hasBadge: true, hasChevron: true },
+        { href: '/admin/profit', icon: 'fa-solid fa-sack-dollar', label: 'Profit & Marges', hasChevron: true },
         { href: '/admin/customers', icon: 'fa-solid fa-users', label: 'Customers' },
         { href: '/admin/reviews', icon: 'fa-solid fa-star', label: 'Reviews' },
       ]
@@ -1715,6 +1717,8 @@ function renderProductForm(el, p, id) {
           <div class="form-group"><label class="form-label">Title *</label><input class="form-control" id="p-title" value="${p?.title||''}" placeholder="Product Name" required></div>
           <div class="form-group"><label class="form-label">Price *</label><input type="number" class="form-control" id="p-price" value="${p?.price||''}" required></div>
           <div class="form-group"><label class="form-label">Old Price</label><input type="number" class="form-control" id="p-priceOld" value="${p?.priceOld||''}"></div>
+          <div class="form-group"><label class="form-label">Cost Price (Coût d'achat)</label><input type="number" class="form-control" id="p-costPrice" value="${p?.costPrice||''}" placeholder="e.g. 4500"></div>
+          <div class="form-group"><label class="form-label">Shipping Cost (Frais livraison)</label><input type="number" class="form-control" id="p-shippingCost" value="${p?.shippingCost||''}" placeholder="e.g. 1500"></div>
           <div class="form-group"><label class="form-label">Currency</label><input class="form-control" id="p-currency" value="${p?.currency||'CFA'}"></div>
           <div class="form-group"><label class="form-label">Stock</label><input type="number" class="form-control" id="p-stock" value="${p?.stock||'25'}"></div>
           <div class="form-group"><label class="form-label">SKU Code</label><input class="form-control" id="p-code" value="${p?.code||''}" placeholder="COD00000"></div>
@@ -1854,6 +1858,8 @@ function renderProductForm(el, p, id) {
       title: document.getElementById('p-title').value.trim(),
       price: parseInt(document.getElementById('p-price').value),
       priceOld: parseInt(document.getElementById('p-priceOld').value) || null,
+      costPrice: parseInt(document.getElementById('p-costPrice').value) || null,
+      shippingCost: parseInt(document.getElementById('p-shippingCost').value) || null,
       currency: document.getElementById('p-currency').value.trim(),
       category: 'Mode',
       stock: document.getElementById('p-stock').value.trim(),
@@ -3296,6 +3302,791 @@ function showReviewModal(review = null, products = [], onSave = null) {
       btn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> ${isEdit ? 'Save Changes' : 'Create Review'}`;
     }
   };
+}
+
+// ── Profit Tracker & Net Margin Module ──────────────────────
+async function renderProfitTracker(el) {
+  el.innerHTML = `
+    <div class="admin-topbar">
+      <div>
+        <h1 style="margin:0 0 4px 0;">Profit & Marges Nettes</h1>
+        <p style="font-size:13px; color:var(--muted); margin:0;">Calculateur de rentabilité réelle en temps réel, marges nettes et coûts logistiques COD.</p>
+      </div>
+      <div class="topbar-actions">
+        <a href="/" target="_blank" class="topbar-icon-btn" title="View Storefront"><i class="fa fa-arrow-up-right-from-square"></i></a>
+        <button class="topbar-icon-btn theme-toggle-btn" title="Toggle Theme"><i class="fa-solid fa-moon"></i></button>
+        <button class="topbar-icon-btn" title="Notifications"><i class="fa fa-bell"></i></button>
+      </div>
+    </div>
+    <div style="padding: 60px 20px; text-align: center; color: var(--muted);">
+      <i class="fa-solid fa-spinner fa-spin" style="font-size: 28px; color: var(--accent); margin-bottom: 12px;"></i>
+      <p style="font-size: 14px; font-weight: 600;">Calcul de la rentabilité réelle et analyse des marges...</p>
+    </div>
+  `;
+
+  let orders = [];
+  let products = [];
+  let settings = {};
+
+  try {
+    const [oData, pData, sData] = await Promise.all([
+      api.getOrders(),
+      api.getProducts(),
+      api.getSettings()
+    ]);
+    orders = Array.isArray(oData) ? oData : [];
+    products = Array.isArray(pData) ? pData : [];
+    settings = sData || {};
+  } catch (e) {
+    console.error('Error fetching profit data:', e);
+  }
+
+  let adSpendCFA = Number(settings.adSpendCFA) !== undefined && settings.adSpendCFA !== null ? Number(settings.adSpendCFA) : 50000;
+  const defaultDelivCFA = Number(settings.defaultDeliveryCostCFA) || 1500;
+  const defaultDelivGNF = Number(settings.defaultDeliveryCostGNF) || 25000;
+
+  // Build product lookup map
+  const productMap = {};
+  products.forEach(p => {
+    productMap[p.id] = p;
+    if (p.code) productMap[p.code.toLowerCase()] = p;
+    if (p.title) productMap[p.title.toLowerCase()] = p;
+  });
+
+  const findProductForOrder = (order) => {
+    if (!order) return null;
+    if (order.productId && productMap[order.productId]) return productMap[order.productId];
+    if (order.code && productMap[order.code.toLowerCase()]) return productMap[order.code.toLowerCase()];
+    const title = String(order.produit || '').split(' (')[0].trim().toLowerCase();
+    if (title && productMap[title]) return productMap[title];
+    for (const p of products) {
+      if (p.title && (title.includes(p.title.toLowerCase()) || p.title.toLowerCase().includes(title))) {
+        return p;
+      }
+    }
+    return null;
+  };
+
+  // Status checkers
+  const isDelivered = (o) => {
+    const st = String(o.status || '').toUpperCase();
+    return st === 'COMPLETED' || st === 'DELIVERED' || st === 'LIVRÉ' || st === 'LIVRE' || st === 'CONFIRMED' || st === 'CONFIRMÉ';
+  };
+  const isReturned = (o) => {
+    const st = String(o.status || '').toUpperCase();
+    return st === 'CANCELLED' || st === 'ANNULÉ' || st === 'ANNULE' || st === 'RETURNED' || st === 'RETOURNÉ' || st === 'RETOURNE';
+  };
+
+  // Valid orders (excluding abandoned carts)
+  const validOrders = orders.filter(o => o.status !== 'ABANDONED');
+  const totalValidCount = validOrders.length;
+  const deliveredOrders = validOrders.filter(isDelivered);
+  const returnedOrders = validOrders.filter(isReturned);
+  const pendingOrders = validOrders.filter(o => !isDelivered(o) && !isReturned(o));
+
+  // Financial sums
+  let totalDeliveredRevenueCFA = 0;
+  let totalDeliveredCOGSCFA = 0;
+  let totalDeliveredShippingCFA = 0;
+
+  // Product profitability tracking
+  const productProfitStats = {};
+  products.forEach(p => {
+    productProfitStats[p.id] = {
+      product: p,
+      deliveredUnits: 0,
+      deliveredRevenueCFA: 0,
+      deliveredCOGSCFA: 0,
+      deliveredShippingCFA: 0,
+      returnedUnits: 0
+    };
+  });
+
+  deliveredOrders.forEach(o => {
+    const rev = getOrderRevenueCFA(o);
+    totalDeliveredRevenueCFA += rev;
+
+    const matchedProd = findProductForOrder(o);
+    const isGN = isOrderGNF(o);
+
+    // COGS
+    let unitCostCFA = 0;
+    if (matchedProd && matchedProd.costPrice) {
+      unitCostCFA = isGN ? Math.round(Number(matchedProd.costPrice) * RATES.GNF_TO_CFA) : Number(matchedProd.costPrice);
+    } else {
+      unitCostCFA = Math.round(rev * 0.25);
+    }
+
+    // Shipping
+    let unitShippingCFA = 0;
+    if (matchedProd && matchedProd.shippingCost) {
+      unitShippingCFA = isGN ? Math.round(Number(matchedProd.shippingCost) * RATES.GNF_TO_CFA) : Number(matchedProd.shippingCost);
+    } else {
+      unitShippingCFA = isGN ? Math.round(defaultDelivGNF * RATES.GNF_TO_CFA) : defaultDelivCFA;
+    }
+
+    totalDeliveredCOGSCFA += unitCostCFA;
+    totalDeliveredShippingCFA += unitShippingCFA;
+
+    if (matchedProd && productProfitStats[matchedProd.id]) {
+      productProfitStats[matchedProd.id].deliveredUnits += 1;
+      productProfitStats[matchedProd.id].deliveredRevenueCFA += rev;
+      productProfitStats[matchedProd.id].deliveredCOGSCFA += unitCostCFA;
+      productProfitStats[matchedProd.id].deliveredShippingCFA += unitShippingCFA;
+    }
+  });
+
+  // Wasted courier costs on returns
+  let totalWastedLogisticsCFA = 0;
+  let totalLostRevenueCFA = 0;
+
+  returnedOrders.forEach(o => {
+    const rev = getOrderRevenueCFA(o);
+    totalLostRevenueCFA += rev;
+
+    const matchedProd = findProductForOrder(o);
+    const isGN = isOrderGNF(o);
+    let returnFeeCFA = isGN ? Math.round(defaultDelivGNF * RATES.GNF_TO_CFA) : defaultDelivCFA;
+    if (matchedProd && matchedProd.shippingCost) {
+      returnFeeCFA = isGN ? Math.round(Number(matchedProd.shippingCost) * RATES.GNF_TO_CFA) : Number(matchedProd.shippingCost);
+    }
+    totalWastedLogisticsCFA += returnFeeCFA;
+
+    if (matchedProd && productProfitStats[matchedProd.id]) {
+      productProfitStats[matchedProd.id].returnedUnits += 1;
+    }
+  });
+
+  const totalLogisticsCFA = totalDeliveredShippingCFA + totalWastedLogisticsCFA;
+  const netProfitCFA = totalDeliveredRevenueCFA - totalDeliveredCOGSCFA - totalLogisticsCFA - adSpendCFA;
+  const netMarginPercent = totalDeliveredRevenueCFA > 0 ? ((netProfitCFA / totalDeliveredRevenueCFA) * 100).toFixed(1) : '0.0';
+  const deliverySuccessRate = totalValidCount > 0 ? ((deliveredOrders.length / totalValidCount) * 100).toFixed(1) : '100.0';
+  const returnRate = totalValidCount > 0 ? ((returnedOrders.length / totalValidCount) * 100).toFixed(1) : '0.0';
+
+  // Country breakdown
+  const countryStats = {};
+  validOrders.forEach(o => {
+    const c = o.pays || o.country || 'CI';
+    const cName = COUNTRY_MAP[c] || c;
+    if (!countryStats[c]) {
+      countryStats[c] = {
+        code: c,
+        name: cName,
+        totalOrders: 0,
+        deliveredOrders: 0,
+        returnedOrders: 0,
+        revenueCFA: 0,
+        cogsCFA: 0,
+        logisticsCFA: 0
+      };
+    }
+    countryStats[c].totalOrders += 1;
+    const isGN = isOrderGNF(o);
+    const matchedProd = findProductForOrder(o);
+    const shipFee = isGN ? Math.round(defaultDelivGNF * RATES.GNF_TO_CFA) : defaultDelivCFA;
+
+    if (isDelivered(o)) {
+      countryStats[c].deliveredOrders += 1;
+      const rev = getOrderRevenueCFA(o);
+      countryStats[c].revenueCFA += rev;
+      const cost = matchedProd && matchedProd.costPrice ? (isGN ? Math.round(Number(matchedProd.costPrice) * RATES.GNF_TO_CFA) : Number(matchedProd.costPrice)) : Math.round(rev * 0.25);
+      countryStats[c].cogsCFA += cost;
+      countryStats[c].logisticsCFA += shipFee;
+    } else if (isReturned(o)) {
+      countryStats[c].returnedOrders += 1;
+      countryStats[c].logisticsCFA += shipFee;
+    }
+  });
+
+  const countryRows = Object.values(countryStats).map(cs => {
+    const net = cs.revenueCFA - cs.cogsCFA - cs.logisticsCFA;
+    const margin = cs.revenueCFA > 0 ? ((net / cs.revenueCFA) * 100).toFixed(1) : '0.0';
+    const delivRate = cs.totalOrders > 0 ? Math.round((cs.deliveredOrders / cs.totalOrders) * 100) : 0;
+    return { ...cs, netProfitCFA: net, marginPercent: margin, delivRate };
+  }).sort((a, b) => b.netProfitCFA - a.netProfitCFA);
+
+  // Initial Simulator parameters
+  const avgOrderValue = deliveredOrders.length > 0 ? totalDeliveredRevenueCFA / deliveredOrders.length : 18000;
+  const avgCOGS = deliveredOrders.length > 0 ? totalDeliveredCOGSCFA / deliveredOrders.length : 4500;
+  const avgShipping = 1500;
+
+  el.innerHTML = `
+    <div class="admin-topbar">
+      <div>
+        <h1 style="margin:0 0 4px 0;">Profit & Marges Nettes</h1>
+        <p style="font-size:13px; color:var(--muted); margin:0;">Calculateur de rentabilité réelle en temps réel, marges nettes et coûts logistiques COD.</p>
+      </div>
+      <div class="topbar-actions" style="display:flex; align-items:center; gap:10px;">
+        <button id="openAdSpendModalBtn" class="btn btn-ghost" style="display:inline-flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; padding:8px 14px; border-radius:10px;">
+          <i class="fa-solid fa-bullhorn" style="color:var(--accent);"></i>
+          <span>Budget Pub: <strong>${fmtPrice(adSpendCFA)} CFA</strong></span>
+        </button>
+        <button id="exportProfitCsvBtn" class="btn btn-ghost" style="display:inline-flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; padding:8px 14px; border-radius:10px;">
+          <i class="fa-solid fa-file-csv"></i> Export CSV
+        </button>
+        <a href="/" target="_blank" class="topbar-icon-btn" title="View Storefront"><i class="fa fa-arrow-up-right-from-square"></i></a>
+        <button class="topbar-icon-btn theme-toggle-btn" title="Toggle Theme"><i class="fa-solid fa-moon"></i></button>
+        <button class="topbar-icon-btn" title="Notifications"><i class="fa fa-bell"></i></button>
+      </div>
+    </div>
+
+    <!-- HERO CARD: NET PROFIT -->
+    <div class="profit-hero-card">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px;">
+        <div>
+          <div class="profit-hero-title">
+            <i class="fa-solid fa-sack-dollar"></i> Bénéfice Net Réel Encaissé (Après tous les coûts)
+          </div>
+          <div class="profit-hero-amount" id="heroNetProfit">
+            ${fmtPrice(netProfitCFA)} CFA
+          </div>
+          <div style="font-size:13px; opacity:0.9; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <span>Formule : <strong>CA Encaissé</strong> (${fmtPrice(totalDeliveredRevenueCFA)}) - <strong>Achat Fournisseur</strong> (${fmtPrice(totalDeliveredCOGSCFA)}) - <strong>Livraisons/Retours</strong> (${fmtPrice(totalLogisticsCFA)}) - <strong>Pub</strong> (${fmtPrice(adSpendCFA)})</span>
+          </div>
+        </div>
+
+        <div style="text-align:right;">
+          <div class="profit-margin-pill" style="${Number(netMarginPercent) >= 50 ? '' : Number(netMarginPercent) >= 30 ? 'background:rgba(245,158,11,0.3);' : 'background:rgba(239,68,68,0.3);'}">
+            <i class="fa-solid fa-chart-line"></i> Marge Nette : ${netMarginPercent}%
+          </div>
+          <div style="font-size:12px; margin-top:8px; opacity:0.85;">
+            Sur ${deliveredOrders.length} commandes confirmées & livrées
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4 Sub-KPIs Breakdown Cards -->
+    <div class="profit-breakdown-grid">
+      <div class="profit-mini-card">
+        <div class="profit-mini-lbl">
+          <span>Chiffre d'Affaires Livré</span>
+          <i class="fa-solid fa-circle-dollar-to-slot" style="color:#10b981;"></i>
+        </div>
+        <div class="profit-mini-val" style="color:#10b981;">
+          ${fmtPrice(totalDeliveredRevenueCFA)} CFA
+        </div>
+        <div style="font-size:12px; color:var(--muted);">
+          Total brut encaissé à la livraison
+        </div>
+      </div>
+
+      <div class="profit-mini-card">
+        <div class="profit-mini-lbl">
+          <span>Coût d'Achat (COGS)</span>
+          <i class="fa-solid fa-boxes-packing" style="color:#f59e0b;"></i>
+        </div>
+        <div class="profit-mini-val" style="color:#f59e0b;">
+          ${fmtPrice(totalDeliveredCOGSCFA)} CFA
+        </div>
+        <div style="font-size:12px; color:var(--muted);">
+          Prix d'achat fournisseur des articles vendus
+        </div>
+      </div>
+
+      <div class="profit-mini-card">
+        <div class="profit-mini-lbl">
+          <span>Frais de Livraison Réels</span>
+          <i class="fa-solid fa-truck" style="color:#3b82f6;"></i>
+        </div>
+        <div class="profit-mini-val" style="color:#3b82f6;">
+          ${fmtPrice(totalLogisticsCFA)} CFA
+        </div>
+        <div style="font-size:12px; color:var(--muted);">
+          Livreurs & agences (Livrées + Retours)
+        </div>
+      </div>
+
+      <div class="profit-mini-card">
+        <div class="profit-mini-lbl">
+          <span>Dépenses Publicitaires</span>
+          <i class="fa-solid fa-bullhorn" style="color:#8b5cf6;"></i>
+        </div>
+        <div class="profit-mini-val" style="color:#8b5cf6;">
+          ${fmtPrice(adSpendCFA)} CFA
+        </div>
+        <div style="font-size:12px; color:var(--muted); display:flex; justify-content:space-between;">
+          <span>Meta / TikTok Ads</span>
+          <a href="#" id="editAdSpendLink" style="color:var(--accent); font-weight:700; text-decoration:none;">Modifier</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2 Column Section: Returns Analysis & Interactive Simulator -->
+    <div class="profit-split-grid">
+      <!-- COD Returns & Wasted Logistics Card -->
+      <div class="simulator-box">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+          <h2 style="font-size:16px; font-weight:800; color:var(--text); margin:0; display:flex; align-items:center; gap:8px;">
+            <i class="fa-solid fa-triangle-exclamation" style="color:#ef4444;"></i> Impact des Retours COD & Pertes
+          </h2>
+          <span class="badge badge-orange" style="font-size:12px;">Taux de retour : ${returnRate}%</span>
+        </div>
+
+        <p style="font-size:13px; color:var(--muted); margin:0 0 16px 0; line-height:1.5;">
+          En paiement à la livraison, les colis refusés ou non livrés génèrent des coûts logistiques perdus sans aucun chiffre d'affaires.
+        </p>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:18px;">
+          <div style="background:rgba(239, 68, 68, 0.08); border:1px solid rgba(239, 68, 68, 0.2); border-radius:12px; padding:14px;">
+            <div style="font-size:11px; font-weight:700; color:#ef4444; text-transform:uppercase;">Frais Livreurs Perdus</div>
+            <div style="font-size:20px; font-weight:800; color:#ef4444; margin:4px 0;">
+              ${fmtPrice(totalWastedLogisticsCFA)} CFA
+            </div>
+            <div style="font-size:11.5px; color:var(--muted);">${returnedOrders.length} colis retournés/annulés</div>
+          </div>
+
+          <div style="background:rgba(245, 158, 11, 0.08); border:1px solid rgba(245, 158, 11, 0.2); border-radius:12px; padding:14px;">
+            <div style="font-size:11px; font-weight:700; color:#f59e0b; text-transform:uppercase;">Manque à Gagner (CA perdu)</div>
+            <div style="font-size:20px; font-weight:800; color:#f59e0b; margin:4px 0;">
+              ${fmtPrice(totalLostRevenueCFA)} CFA
+            </div>
+            <div style="font-size:11.5px; color:var(--muted);">Commandes non abouties</div>
+          </div>
+        </div>
+
+        <div style="background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:14px;">
+          <div style="display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:6px;">
+            <span style="font-weight:700; color:var(--text);">Taux de Confirmation & Livraison Global :</span>
+            <strong style="color:#10b981;">${deliverySuccessRate}% (${deliveredOrders.length}/${totalValidCount})</strong>
+          </div>
+          <div style="height:8px; background:var(--border); border-radius:9999px; overflow:hidden;">
+            <div style="width:${deliverySuccessRate}%; height:100%; background:linear-gradient(90deg, #10b981, #059669); border-radius:9999px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive Profit Simulator & Breakeven Calculator -->
+      <div class="simulator-box">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+          <h2 style="font-size:16px; font-weight:800; color:var(--text); margin:0; display:flex; align-items:center; gap:8px;">
+            <i class="fa-solid fa-calculator" style="color:var(--accent);"></i> Simulateur & Seuil de Rentabilité
+          </h2>
+          <span class="badge badge-purple" style="font-size:11.5px;">Temps Réel</span>
+        </div>
+
+        <div class="simulator-slider-wrap">
+          <div class="simulator-slider-header">
+            <span>Budget Publicitaire Simulé :</span>
+            <strong id="simAdSpendVal" style="color:var(--accent);">${fmtPrice(adSpendCFA)} CFA</strong>
+          </div>
+          <input type="range" class="simulator-slider" id="simAdSlider" min="0" max="300000" step="5000" value="${adSpendCFA}">
+        </div>
+
+        <div class="simulator-slider-wrap">
+          <div class="simulator-slider-header">
+            <span>Taux de Livraison Estimé :</span>
+            <strong id="simDelivVal" style="color:#10b981;">${Math.round(Number(deliverySuccessRate)) || 80}%</strong>
+          </div>
+          <input type="range" class="simulator-slider" id="simDelivSlider" min="40" max="100" step="1" value="${Math.round(Number(deliverySuccessRate)) || 80}">
+        </div>
+
+        <div class="simulator-results-grid">
+          <div class="simulator-res-card">
+            <div class="simulator-res-lbl">Profit Projeté</div>
+            <div class="simulator-res-val" id="simProfitRes" style="color:#10b981;">${fmtPrice(netProfitCFA)} CFA</div>
+          </div>
+          <div class="simulator-res-card">
+            <div class="simulator-res-lbl">ROAS Breakeven</div>
+            <div class="simulator-res-val" id="simRoasRes">1.85x</div>
+          </div>
+          <div class="simulator-res-card">
+            <div class="simulator-res-lbl">CPA Max Tolérable</div>
+            <div class="simulator-res-val" id="simCpaRes" style="color:var(--accent);">4.800 CFA</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Product-by-Product Profitability Table -->
+    <div class="table-card" style="margin-bottom: 24px;">
+      <div class="card-toolbar" style="padding:18px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+          <h2 style="font-size:16px; font-weight:800; margin:0 0 4px 0; color:var(--text);">
+            <i class="fa-solid fa-boxes-stacked" style="color:var(--accent); margin-right:8px;"></i>
+            Rentabilité Détaillée par Produit
+          </h2>
+          <p style="font-size:12.5px; color:var(--muted); margin:0;">
+            Ajustez le coût d'achat fournisseur et les frais de livraison pour chaque article pour recalculer vos marges exactes.
+          </p>
+        </div>
+      </div>
+
+      <div class="table-wrap" style="overflow-x:auto;">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th style="width:50px;">Image</th>
+              <th>Produit</th>
+              <th>Prix de Vente</th>
+              <th>Prix d'Achat (COGS)</th>
+              <th>Frais Livraison</th>
+              <th>Marge Brute Unit.</th>
+              <th>Unités Livrées</th>
+              <th>CA Généré</th>
+              <th>Bénéfice Net</th>
+              <th>Rentabilité</th>
+              <th style="text-align:right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${products.map(p => {
+              const stat = productProfitStats[p.id] || { deliveredUnits: 0, deliveredRevenueCFA: 0, deliveredCOGSCFA: 0, deliveredShippingCFA: 0 };
+              const isGN = isOrderGNF(p);
+              const price = Number(p.price) || 0;
+              const cost = p.costPrice !== undefined && p.costPrice !== null ? Number(p.costPrice) : (isGN ? Math.round(price * 0.25) : Math.round(price * 0.25));
+              const ship = p.shippingCost !== undefined && p.shippingCost !== null ? Number(p.shippingCost) : (isGN ? defaultDelivGNF : defaultDelivCFA);
+              
+              const unitMargin = price - cost - ship;
+              const marginPct = price > 0 ? Math.round((unitMargin / price) * 100) : 0;
+              const netGeneratedCFA = stat.deliveredRevenueCFA - stat.deliveredCOGSCFA - stat.deliveredShippingCFA;
+
+              let badgeClass = 'margin-high';
+              let badgeText = `${marginPct}% (Excellente)`;
+              let badgeIcon = 'fa-arrow-trend-up';
+              if (marginPct < 40) {
+                badgeClass = 'margin-low';
+                badgeText = `${marginPct}% (Faible)`;
+                badgeIcon = 'fa-triangle-exclamation';
+              } else if (marginPct < 60) {
+                badgeClass = 'margin-med';
+                badgeText = `${marginPct}% (Bonne)`;
+                badgeIcon = 'fa-check';
+              }
+
+              return `
+                <tr>
+                  <td>
+                    <img src="${p.featuredImage || 'https://placehold.co/48x48'}" alt="" class="product-thumb" onerror="this.src='https://placehold.co/48x48'">
+                  </td>
+                  <td>
+                    <strong style="font-size:13.5px; color:var(--text); display:block;">${p.title}</strong>
+                    <div style="display:flex; align-items:center; gap:6px; margin-top:2px;">
+                      <span style="font-family:monospace; font-size:11px; color:var(--muted);">${p.code || p.id}</span>
+                      <span class="badge ${isGN ? 'badge-purple' : 'badge-green'}" style="font-size:10px;">${p.currency || 'CFA'}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <strong>${fmtPrice(price)} ${p.currency || 'CFA'}</strong>
+                    ${isGN ? `<div style="font-size:11px; color:var(--muted);">≈ ${fmtPrice(Math.round(price * RATES.GNF_TO_CFA))} CFA</div>` : ''}
+                  </td>
+                  <td>
+                    <div style="display:inline-flex; align-items:center; gap:6px;">
+                      <input type="number" class="quick-cost-input" id="cost-${p.id}" value="${cost}" title="Modifier coût d'achat fournisseur">
+                      <span style="font-size:11px; color:var(--muted);">${p.currency || 'CFA'}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div style="display:inline-flex; align-items:center; gap:6px;">
+                      <input type="number" class="quick-cost-input" id="ship-${p.id}" value="${ship}" title="Modifier frais de livraison livreur">
+                      <span style="font-size:11px; color:var(--muted);">${p.currency || 'CFA'}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <strong style="color:${unitMargin > 0 ? '#10b981' : '#ef4444'};">
+                      ${fmtPrice(unitMargin)} ${p.currency || 'CFA'}
+                    </strong>
+                  </td>
+                  <td>
+                    <span class="badge badge-blue" style="font-weight:700;">${stat.deliveredUnits} livrés</span>
+                  </td>
+                  <td>
+                    <strong>${fmtPrice(stat.deliveredRevenueCFA)} CFA</strong>
+                  </td>
+                  <td>
+                    <strong style="color:${netGeneratedCFA >= 0 ? '#10b981' : '#ef4444'}; font-size:13.5px;">
+                      ${fmtPrice(netGeneratedCFA)} CFA
+                    </strong>
+                  </td>
+                  <td>
+                    <span class="${badgeClass}">
+                      <i class="fa-solid ${badgeIcon}"></i> ${badgeText}
+                    </span>
+                  </td>
+                  <td style="text-align:right;">
+                    <button class="btn btn-ghost btn-sm save-product-costs-btn" data-id="${p.id}" style="padding:5px 10px; font-size:11.5px;" title="Enregistrer les coûts">
+                      <i class="fa-solid fa-floppy-disk"></i> Sauvegarder
+                    </button>
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Country Profitability Comparison Table -->
+    <div class="table-card">
+      <div class="card-toolbar" style="padding:18px 24px; border-bottom:1px solid var(--border);">
+        <h2 style="font-size:16px; font-weight:800; margin:0 0 4px 0; color:var(--text); display:flex; align-items:center; gap:8px;">
+          <i class="fa-solid fa-earth-africa" style="color:#3b82f6;"></i>
+          Rentabilité Nette par Pays de Vente
+        </h2>
+        <p style="font-size:12.5px; color:var(--muted); margin:0;">
+          Comparatif des marges et bénéfices nets par marché, intégrant les taux de conversion et frais de livraison locaux.
+        </p>
+      </div>
+      <div class="table-wrap" style="overflow-x:auto;">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Pays</th>
+              <th>Commandes Totales</th>
+              <th>Commandes Livrées</th>
+              <th>Taux Livraison</th>
+              <th>CA Encaissé (CFA)</th>
+              <th>Coût Marchandises (CFA)</th>
+              <th>Coût Logistique (CFA)</th>
+              <th>Bénéfice Net (CFA)</th>
+              <th>Marge Nette %</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${countryRows.length > 0 ? countryRows.map((c, idx) => `
+              <tr>
+                <td>
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="badge ${c.code === 'GN' ? 'badge-purple' : 'badge-blue'}" style="font-weight:800;">${c.code}</span>
+                    <strong style="color:var(--text);">${c.name}</strong>
+                    ${idx === 0 && c.netProfitCFA > 0 ? `<span class="badge badge-gold"><i class="fa-solid fa-trophy"></i> Top Marché</span>` : ''}
+                  </div>
+                </td>
+                <td><strong>${c.totalOrders}</strong></td>
+                <td><strong style="color:#10b981;">${c.deliveredOrders}</strong></td>
+                <td>
+                  <span class="badge ${c.delivRate >= 75 ? 'badge-green' : c.delivRate >= 50 ? 'badge-orange' : 'badge-gray'}">
+                    ${c.delivRate}%
+                  </span>
+                </td>
+                <td><strong>${fmtPrice(c.revenueCFA)} CFA</strong></td>
+                <td style="color:var(--muted);">${fmtPrice(c.cogsCFA)} CFA</td>
+                <td style="color:var(--muted);">${fmtPrice(c.logisticsCFA)} CFA</td>
+                <td>
+                  <strong style="color:${c.netProfitCFA >= 0 ? '#10b981' : '#ef4444'}; font-size:13.5px;">
+                    ${fmtPrice(c.netProfitCFA)} CFA
+                  </strong>
+                </td>
+                <td>
+                  <span class="${Number(c.marginPercent) >= 50 ? 'margin-high' : Number(c.marginPercent) >= 30 ? 'margin-med' : 'margin-low'}">
+                    ${c.marginPercent}%
+                  </span>
+                </td>
+              </tr>
+            `).join('') : `
+              <tr>
+                <td colspan="9" style="text-align:center; color:var(--muted); padding:30px;">
+                  Aucune donnée de commande disponible pour le calcul par pays.
+                </td>
+              </tr>
+            `}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  // Simulator dynamic updates
+  const updateSimulator = () => {
+    const simAd = Number(document.getElementById('simAdSlider')?.value) || 0;
+    const simRate = Number(document.getElementById('simDelivSlider')?.value) || 80;
+
+    const simAdVal = document.getElementById('simAdSpendVal');
+    if (simAdVal) simAdVal.textContent = `${fmtPrice(simAd)} CFA`;
+    const simDelVal = document.getElementById('simDelivVal');
+    if (simDelVal) simDelVal.textContent = `${simRate}%`;
+
+    const simCount = Math.max(1, Math.round(totalValidCount * (simRate / 100)));
+    const simRev = Math.round(simCount * avgOrderValue);
+    const simCogs = Math.round(simCount * avgCOGS);
+    const simLog = Math.round(totalValidCount * avgShipping);
+    const simProfit = simRev - simCogs - simLog - simAd;
+
+    const simProfitEl = document.getElementById('simProfitRes');
+    if (simProfitEl) {
+      simProfitEl.textContent = `${fmtPrice(simProfit)} CFA`;
+      simProfitEl.style.color = simProfit >= 0 ? '#10b981' : '#ef4444';
+    }
+
+    const simRoasEl = document.getElementById('simRoasRes');
+    if (simRoasEl) {
+      const roas = simAd > 0 ? (simRev / simAd).toFixed(2) : '1.00';
+      simRoasEl.textContent = `${roas}x`;
+    }
+
+    const simCpaEl = document.getElementById('simCpaRes');
+    if (simCpaEl) {
+      const maxCpa = Math.max(0, Math.round((avgOrderValue - avgCOGS - avgShipping) * (simRate / 100)));
+      simCpaEl.textContent = `${fmtPrice(maxCpa)} CFA`;
+    }
+  };
+
+  const adSlider = document.getElementById('simAdSlider');
+  if (adSlider) adSlider.oninput = updateSimulator;
+  const delSlider = document.getElementById('simDelivSlider');
+  if (delSlider) delSlider.oninput = updateSimulator;
+  updateSimulator();
+
+  // Save product cost handler
+  document.querySelectorAll('.save-product-costs-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const pid = btn.getAttribute('data-id');
+      const costInput = document.getElementById(`cost-${pid}`);
+      const shipInput = document.getElementById(`ship-${pid}`);
+      if (!costInput || !shipInput) return;
+
+      const costPrice = Number(costInput.value) || 0;
+      const shippingCost = Number(shipInput.value) || 0;
+
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Sauvegarde...';
+
+      try {
+        const prod = products.find(p => p.id === pid);
+        if (prod) {
+          prod.costPrice = costPrice;
+          prod.shippingCost = shippingCost;
+          const res = await api.updateProduct(pid, prod);
+          if (res.ok) {
+            toast('Coûts du produit mis à jour avec succès !');
+            renderProfitTracker(el);
+          } else {
+            toast('Erreur lors de la mise à jour', 'error');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Sauvegarder';
+          }
+        }
+      } catch (err) {
+        toast('Erreur de connexion', 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Sauvegarder';
+      }
+    };
+  });
+
+  // Edit Ad Spend Modal
+  const openAdSpendModal = () => {
+    const oldModal = document.getElementById('ad-spend-modal');
+    if (oldModal) oldModal.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'ad-spend-modal';
+    modal.className = 'modal-overlay open';
+    modal.innerHTML = `
+      <div class="modal-box" style="max-width:480px; width:95%;">
+        <div class="modal-head" style="padding:20px 26px;">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div style="width:40px; height:40px; border-radius:12px; background:rgba(147, 51, 234, 0.15); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:18px;">
+              <i class="fa-solid fa-bullhorn"></i>
+            </div>
+            <div>
+              <h2 style="font-size:17px; font-weight:700; margin:0; color:var(--text);">Budget Publicitaire (Ad Spend)</h2>
+              <p style="font-size:12px; color:var(--muted); margin:3px 0 0 0;">Définir vos dépenses publicitaires Meta/TikTok pour déduire du bénéfice net.</p>
+            </div>
+          </div>
+          <button class="modal-close" id="closeAdSpendModal" style="font-size:24px; padding:4px 8px;">&times;</button>
+        </div>
+
+        <form id="adSpendForm" style="padding:24px 26px;">
+          <div style="margin-bottom:18px;">
+            <label class="form-label" style="font-size:13px; font-weight:700; color:var(--text); margin-bottom:8px; display:block;">
+              Dépenses Publicitaires Totales (en CFA) *
+            </label>
+            <div style="position:relative;">
+              <input type="number" class="search-input" id="adSpendInput" value="${adSpendCFA}" required style="width:100%; font-size:16px; font-weight:700; padding:10px 14px;">
+            </div>
+            <p style="font-size:12px; color:var(--muted); margin:6px 0 0 0;">
+              Cette valeur est soustraite de votre chiffre d'affaires pour calculer votre marge nette réelle.
+            </p>
+          </div>
+
+          <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <button type="button" class="btn btn-ghost" id="cancelAdSpendBtn">Annuler</button>
+            <button type="submit" class="btn btn-primary" id="saveAdSpendBtn">
+              <i class="fa-solid fa-floppy-disk"></i> Enregistrer
+            </button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+    const closeModal = () => modal.remove();
+    modal.querySelector('#closeAdSpendModal').onclick = closeModal;
+    modal.querySelector('#cancelAdSpendBtn').onclick = closeModal;
+    modal.onclick = (e) => { if (e.target === modal) closeModal(); };
+
+    modal.querySelector('#adSpendForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const val = Number(document.getElementById('adSpendInput').value) || 0;
+      const saveBtn = modal.querySelector('#saveAdSpendBtn');
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Sauvegarde...';
+
+      try {
+        const res = await api.updateSettings({ adSpendCFA: val });
+        if (res.ok) {
+          toast('Budget publicitaire mis à jour !');
+          closeModal();
+          renderProfitTracker(el);
+        } else {
+          toast('Erreur lors de la mise à jour', 'error');
+          saveBtn.disabled = false;
+        }
+      } catch (err) {
+        toast('Erreur de connexion', 'error');
+        saveBtn.disabled = false;
+      }
+    };
+  };
+
+  const adSpendBtn = document.getElementById('openAdSpendModalBtn');
+  if (adSpendBtn) adSpendBtn.onclick = openAdSpendModal;
+  const adSpendLink = document.getElementById('editAdSpendLink');
+  if (adSpendLink) {
+    adSpendLink.onclick = (e) => {
+      e.preventDefault();
+      openAdSpendModal();
+    };
+  }
+
+  // Export CSV
+  const exportBtn = document.getElementById('exportProfitCsvBtn');
+  if (exportBtn) {
+    exportBtn.onclick = () => {
+      const headers = ['Produit', 'Prix Vente', 'Cout Achat', 'Frais Livraison', 'Marge Unitaire', 'Marge Pct', 'Unites Livrees', 'CA Total CFA', 'Benefice Net CFA'];
+      const rows = products.map(p => {
+        const stat = productProfitStats[p.id] || { deliveredUnits: 0, deliveredRevenueCFA: 0, deliveredCOGSCFA: 0, deliveredShippingCFA: 0 };
+        const price = Number(p.price) || 0;
+        const cost = p.costPrice || 0;
+        const ship = p.shippingCost || 0;
+        const unitMargin = price - cost - ship;
+        const marginPct = price > 0 ? Math.round((unitMargin / price) * 100) : 0;
+        const net = stat.deliveredRevenueCFA - stat.deliveredCOGSCFA - stat.deliveredShippingCFA;
+        return [
+          `"${p.title.replace(/"/g, '""')}"`,
+          price,
+          cost,
+          ship,
+          unitMargin,
+          `${marginPct}%`,
+          stat.deliveredUnits,
+          stat.deliveredRevenueCFA,
+          net
+        ].join(',');
+      });
+
+      const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows].join('\n');
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `rapport_profit_marges_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast('Rapport financier exporté en CSV !');
+    };
+  }
 }
 
 // ── Settings ──────────────────────────────────────────────
