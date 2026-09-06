@@ -1,4 +1,5 @@
 import { api, toast, navigate, fmtPrice, fmtDate, statusBadge, confirmDialog } from './admin-utils.js';
+import { renderCodAfrica } from './admin-cod-africa.js';
 
 const COUNTRY_MAP = {
   CI: "Côte d'Ivoire", SN: "Sénégal", BF: "Burkina Faso", TG: "Togo",
@@ -98,6 +99,7 @@ function router() {
 
   const main = document.getElementById('admin-main');
   if (path === '/admin/orders') renderOrders(main);
+  else if (path === '/admin/cod-africa') renderCodAfrica(main);
   else if (path === '/admin/settings') renderSettings(main);
   else if (path === '/admin/customers') renderCustomers(main);
   else if (path === '/admin/reviews') renderReviews(main);
@@ -160,6 +162,7 @@ function renderShell(root, path) {
       items: [
         { href: '/admin', icon: 'fa-solid fa-shapes', label: 'Dashboard' },
         { href: '/admin/orders', icon: 'fa-solid fa-bag-shopping', label: 'Orders', hasBadge: true, hasChevron: true },
+        { href: '/admin/cod-africa', icon: 'fa-solid fa-earth-africa', label: 'COD in Africa', badgeText: 'COD', hasChevron: true },
         { href: '/admin/profit', icon: 'fa-solid fa-sack-dollar', label: 'Profit & Marges', hasChevron: true },
         { href: '/admin/customers', icon: 'fa-solid fa-users', label: 'Customers' },
         { href: '/admin/reviews', icon: 'fa-solid fa-star', label: 'Reviews' },
@@ -205,7 +208,7 @@ function renderShell(root, path) {
                 <a href="${item.href}" class="admin-nav-item ${isActive(item.href, path)}" data-nav data-href="${item.href}">
                   <i class="${item.icon}"></i>
                   <span>${item.label}</span>
-                  ${item.hasBadge ? `<span class="nav-badge" id="sidebarOrdersBadge" style="display:none;">0</span>` : ''}
+                  ${item.badgeText ? `<span class="badge badge-purple" style="font-size:10px; padding:1px 6px; margin-left:auto; margin-right:4px;">${item.badgeText}</span>` : item.hasBadge ? `<span class="nav-badge" id="sidebarOrdersBadge" style="display:none;">0</span>` : ''}
                   ${item.hasChevron ? `<i class="fa-solid fa-chevron-right admin-nav-chevron"></i>` : ''}
                 </a>
               `).join('')}

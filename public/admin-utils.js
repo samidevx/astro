@@ -50,6 +50,48 @@ export const api = {
   },
   async seed() {
     return fetch('/api/seed', { method: 'POST' });
+  },
+  codAfrica: {
+    async getConfig() {
+      const r = await fetch('/api/cod-africa?action=config');
+      return r.ok ? r.json() : {};
+    },
+    async saveConfig(data) {
+      return fetch('/api/cod-africa?action=config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+    },
+    async getCreativeStats(range = 'all') {
+      const r = await fetch(`/api/cod-africa?action=creative-stats&range=${encodeURIComponent(range)}`);
+      return r.ok ? r.json() : { summary: {}, creatives: [] };
+    },
+    async getAnalytics(variant = 'Revenues', dateType = 'thismonth', country = 'CI', warhouse = '', dates = '') {
+      const params = new URLSearchParams({ action: 'analytics', Response: variant, DateType: dateType, country });
+      if (warhouse) params.set('warhouse', warhouse);
+      if (dates) params.set('dates', dates);
+      const r = await fetch(`/api/cod-africa?${params.toString()}`);
+      return r.ok ? r.json() : {};
+    },
+    async getOrders(country = 'CI', page = 1, limit = 50) {
+      const params = new URLSearchParams({ action: 'orders', country, page: String(page), limit: String(limit) });
+      const r = await fetch(`/api/cod-africa?${params.toString()}`);
+      return r.ok ? r.json() : { data: [] };
+    },
+    async getShippings(country = 'CI', page = 1, limit = 50) {
+      const params = new URLSearchParams({ action: 'shippings', country, page: String(page), limit: String(limit) });
+      const r = await fetch(`/api/cod-africa?${params.toString()}`);
+      return r.ok ? r.json() : { data: [] };
+    },
+    async getProducts(country = 'CI', page = 1, limit = 50) {
+      const params = new URLSearchParams({ action: 'products', country, page: String(page), limit: String(limit) });
+      const r = await fetch(`/api/cod-africa?${params.toString()}`);
+      return r.ok ? r.json() : { data: [] };
+    },
+    async syncStatus() {
+      return fetch('/api/cod-africa?action=sync-status', { method: 'POST' });
+    }
   }
 };
 
@@ -83,12 +125,20 @@ export function fmtDate(d) {
 }
 
 export function statusBadge(status) {
+  const norm = String(status || '').toUpperCase();
   const map = {
     COMPLETED: 'badge-green',
+    DELIVERED: 'badge-green',
+    PAID: 'badge-green',
+    CONFIRMED: 'badge-purple',
+    SHIPPED: 'badge-blue',
+    PROCESSED: 'badge-blue',
+    CANCELLED: 'badge-red',
+    RETURNED: 'badge-red',
     ABANDONED: 'badge-orange',
-    PENDING: 'badge-blue',
+    PENDING: 'badge-orange',
   };
-  return `<span class="badge ${map[status] || 'badge-blue'}">${status || 'UNKNOWN'}</span>`;
+  return `<span class="badge ${map[norm] || 'badge-blue'}">${status || 'UNKNOWN'}</span>`;
 }
 
 export function confirmDialog(msg) {
