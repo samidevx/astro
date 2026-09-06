@@ -63,8 +63,12 @@ export const api = {
         body: JSON.stringify(data)
       });
     },
-    async getCreativeStats(range = 'all') {
-      const r = await fetch(`/api/cod-africa?action=creative-stats&range=${encodeURIComponent(range)}`);
+    async getCreativeStats(range = 'all', startDate = '', endDate = '', country = '') {
+      const params = new URLSearchParams({ action: 'creative-stats', range });
+      if (startDate) params.set('startDate', startDate);
+      if (endDate) params.set('endDate', endDate);
+      if (country && country !== 'ALL') params.set('country', country);
+      const r = await fetch(`/api/cod-africa?${params.toString()}`);
       return r.ok ? r.json() : { summary: {}, creatives: [] };
     },
     async getAnalytics(variant = 'Revenues', dateType = 'thismonth', country = 'CI', warhouse = '', dates = '') {

@@ -19,8 +19,10 @@ let creativeChartInstance = null;
 
 export async function renderCodAfrica(el) {
   let activeTab = 'creatives'; // Default to the requested Creative Stats
-  let selectedCountry = 'CI';
+  let selectedCountry = 'ALL';
   let dateRange = 'all';
+  let startDate = '';
+  let endDate = '';
   let currentConfig = await api.codAfrica.getConfig().catch(() => ({}));
 
   const render = async () => {
@@ -42,10 +44,33 @@ export async function renderCodAfrica(el) {
           <div style="display:flex; align-items:center; gap:6px; background:var(--surface); border:1px solid var(--border); padding:4px 10px; border-radius:10px;">
             <i class="fa-solid fa-earth-africa" style="color:var(--accent);"></i>
             <select id="codCountrySelect" style="background:transparent; border:none; outline:none; font-size:13px; font-weight:700; color:var(--text); cursor:pointer;">
+              <option value="ALL" ${selectedCountry === 'ALL' ? 'selected' : ''}>🌍 All Countries</option>
               ${COD_COUNTRIES.map(c => `
                 <option value="${c.code}" ${c.code === selectedCountry ? 'selected' : ''}>${c.flag} ${c.name} (${c.code})</option>
               `).join('')}
             </select>
+          </div>
+
+          <!-- Date Filter (Right next to Country Selection as requested!) -->
+          <div style="display:flex; align-items:center; gap:6px; background:var(--surface); border:1px solid var(--border); padding:4px 10px; border-radius:10px;">
+            <i class="fa-solid fa-calendar-days" style="color:var(--accent); font-size:13px;"></i>
+            <select id="codTopDateSelect" style="background:transparent; border:none; outline:none; font-size:13px; font-weight:700; color:var(--text); cursor:pointer;">
+              <option value="all" ${dateRange === 'all' ? 'selected' : ''}>All Time</option>
+              <option value="today" ${dateRange === 'today' ? 'selected' : ''}>Today</option>
+              <option value="yesterday" ${dateRange === 'yesterday' ? 'selected' : ''}>Yesterday</option>
+              <option value="7d" ${dateRange === '7d' ? 'selected' : ''}>Last 7 Days</option>
+              <option value="30d" ${dateRange === '30d' ? 'selected' : ''}>Last 30 Days</option>
+              <option value="thismonth" ${dateRange === 'thismonth' ? 'selected' : ''}>This Month</option>
+              <option value="custom" ${dateRange === 'custom' ? 'selected' : ''}>Custom Range</option>
+            </select>
+          </div>
+
+          <!-- Custom Date Pickers (From / To) -->
+          <div id="codTopCustomDates" style="display:${dateRange === 'custom' ? 'inline-flex' : 'none'}; align-items:center; gap:6px; background:var(--surface); border:1px solid var(--border); padding:3px 10px; border-radius:10px;">
+            <span style="font-size:11px; font-weight:700; color:var(--muted);">From</span>
+            <input type="date" class="date-input-field" id="codTopStartDate" value="${startDate}" style="height:26px; font-size:12px; padding:2px 6px;">
+            <span style="font-size:11px; font-weight:700; color:var(--muted);">To</span>
+            <input type="date" class="date-input-field" id="codTopEndDate" value="${endDate}" style="height:26px; font-size:12px; padding:2px 6px;">
           </div>
 
           <button class="btn btn-ghost btn-sm" id="btnSyncCodStatus" title="Synchronize shipment status to store orders">
@@ -115,6 +140,39 @@ export async function renderCodAfrica(el) {
       };
     }
 
+    // Topbar Date Select change
+    const topDateSel = el.querySelector('#codTopDateSelect');
+    const customDatesBox = el.querySelector('#codTopCustomDates');
+    const topStart = el.querySelector('#codTopStartDate');
+    const topEnd = el.querySelector('#codTopEndDate');
+
+    if (topDateSel) {
+      topDateSel.onchange = (e) => {
+        dateRange = e.target.value;
+        if (customDatesBox) {
+          customDatesBox.style.display = dateRange === 'custom' ? 'inline-flex' : 'none';
+        }
+        if (dateRange !== 'custom') {
+          startDate = '';
+          endDate = '';
+        }
+        loadTabContent();
+      };
+    }
+
+    if (topStart) {
+      topStart.onchange = (e) => {
+        startDate = e.target.value;
+        loadTabContent();
+      };
+    }
+    if (topEnd) {
+      topEnd.onchange = (e) => {
+        endDate = e.target.value;
+        loadTabContent();
+      };
+    }
+
     // Sync button
     const btnSync = el.querySelector('#btnSyncCodStatus');
     if (btnSync) {
@@ -152,20 +210,26 @@ export async function renderCodAfrica(el) {
     if (!container) return;
 
     if (activeTab === 'creatives') {
-      renderCreativeStatsTab(container, dateRange, (newRange) => {
+      renderCreativeStatsTab(container, dateRange, startDate, endDate, selectedCountry, (newRange, sDate, eDate) => {
         dateRange = newRange;
+        startDate = sDate || '';
+        endDate = eDate || '';
+        const topDateSelect = el.querySelector('#codTopDateSelect');
+        if (topDateSelect) topDateSelect.value = dateRange;
+        const customBox = el.querySelector('#codTopCustomDates');
+        if (customBox) customBox.style.display = dateRange === 'custom' ? 'inline-flex' : 'none';
         loadTabContent();
       });
     } else if (activeTab === 'analytics') {
-      renderAnalyticsTab(container, selectedCountry, currentConfig);
+      renderAnalyticsTab(container, selectedCountry === 'ALL' ? 'CI' : selectedCountry, currentConfig);
     } else if (activeTab === 'orders') {
-      renderOrdersSearchTab(container, selectedCountry);
+      renderOrdersSearchTab(container, selectedCountry === 'ALL' ? 'CI' : selectedCountry);
     } else if (activeTab === 'shippings') {
-      renderShippingsSearchTab(container, selectedCountry);
+      renderShippingsSearchTab(container, selectedCountry === 'ALL' ? 'CI' : selectedCountry);
     } else if (activeTab === 'products') {
-      renderProductsStockTab(container, selectedCountry);
+      renderProductsStockTab(container, selectedCountry === 'ALL' ? 'CI' : selectedCountry);
     } else if (activeTab === 'docs') {
-      renderDocsPlaygroundTab(container, currentConfig, selectedCountry);
+      renderDocsPlaygroundTab(container, currentConfig, selectedCountry === 'ALL' ? 'CI' : selectedCountry);
     }
   };
 
@@ -173,7 +237,7 @@ export async function renderCodAfrica(el) {
 }
 
 // ── 1. Creative Ad Stats Tab (Stats dyal les creatives) ────────────────────────
-async function renderCreativeStatsTab(container, dateRange, onDateRangeChange) {
+async function renderCreativeStatsTab(container, dateRange, startDate, endDate, selectedCountry, onDateChange) {
   container.innerHTML = `
     <div class="table-card" style="padding:40px; text-align:center;">
       <i class="fa fa-spinner fa-spin" style="font-size:24px; color:var(--accent);"></i>
@@ -183,7 +247,7 @@ async function renderCreativeStatsTab(container, dateRange, onDateRangeChange) {
 
   let data;
   try {
-    data = await api.codAfrica.getCreativeStats(dateRange);
+    data = await api.codAfrica.getCreativeStats(dateRange, startDate, endDate, selectedCountry);
   } catch (err) {
     data = { summary: {}, creatives: [] };
   }
@@ -245,7 +309,7 @@ async function renderCreativeStatsTab(container, dateRange, onDateRangeChange) {
       <div class="kpi-card kpi-green">
         <div class="kpi-icon"><i class="fa-solid fa-truck-ramp-box"></i></div>
         <div class="kpi-val">${summary.totalDelivered || 0}</div>
-        <div class="kpi-lbl">Delivered & Paid Orders</div>
+        <div class="kpi-lbl">Delivered & Paid (inc. Processed)</div>
         <div class="kpi-sub" style="color:#059669; font-weight:700;">
           <i class="fa-solid fa-circle-check"></i> ${summary.overallDeliveryRate || 0}% Delivery Rate
         </div>
@@ -301,7 +365,7 @@ async function renderCreativeStatsTab(container, dateRange, onDateRangeChange) {
               <th style="text-align:center;">Leads</th>
               <th style="text-align:center;">Confirmed</th>
               <th style="text-align:center;">Conf. Rate</th>
-              <th style="text-align:center;">Delivered</th>
+              <th style="text-align:center;" title="Delivered, Paid & Processed orders">Delivered</th>
               <th style="text-align:center;">Delivery Rate</th>
               <th>Funnel Progress</th>
               <th style="text-align:right;">Delivered Cash</th>
@@ -317,7 +381,7 @@ async function renderCreativeStatsTab(container, dateRange, onDateRangeChange) {
 
   // Range button clicks
   container.querySelectorAll('.preset-btn').forEach(btn => {
-    btn.onclick = () => onDateRangeChange(btn.getAttribute('data-range'));
+    btn.onclick = () => onDateChange(btn.getAttribute('data-range'), '', '');
   });
 
   // Search input filter

@@ -461,20 +461,115 @@ export const GET: APIRoute = async ({ request }) => {
   if (action === 'creative-stats') {
     const orders = await getStoreOrders();
     const rangeParam = url.searchParams.get('range') || 'all';
+    const startDateParam = url.searchParams.get('startDate') || '';
+    const endDateParam = url.searchParams.get('endDate') || '';
+    const countryParam = (url.searchParams.get('country') || '').toUpperCase();
 
-    // Optional date filtering
+    // ── Date & Country Filtering ────────────────────────────────
     let filteredOrders = orders;
-    if (rangeParam !== 'all') {
-      const now = Date.now();
-      const days = rangeParam === 'today' ? 1 : rangeParam === '7d' ? 7 : rangeParam === '30d' ? 30 : 0;
-      if (days > 0) {
-        const threshold = now - (days * 86400000);
-        filteredOrders = orders.filter((o: any) => {
-          const t = new Date(o.date || o.savedAt || 0).getTime();
+
+    // Filter by country if specified
+    if (countryParam && countryParam !== 'ALL') {
+      filteredOrders = filteredOrders.filter((o: any) => {
+        const c = String(o.pays || o.country || '').trim().toUpperCase();
+        return !c || c === countryParam;
+      });
+    }
+
+    // Filter by custom date range or preset
+    if (startDateParam || endDateParam) {
+      filteredOrders = filteredOrders.filter((o: any) => {
+        const orderDateStr = o.date || o.savedAt || o.createdAt;
+        if (!orderDateStr) return true;
+        try {
+          const d = new Date(orderDateStr);
+          if (isNaN(d.getTime())) return true;
+          const formatted = d.toISOString().split('T')[0];
+          if (startDateParam && formatted < startDateParam) return false;
+          if (endDateParam && formatted > endDateParam) return false;
+          return true;
+        } catch {
+          return true;
+        }
+      });
+    } else if (rangeParam !== 'all') {
+      const now = new Date();
+      if (rangeParam === 'today') {
+        const todayStr = now.toISOString().split('T')[0];
+        filteredOrders = filteredOrders.filter((o: any) => {
+          const dStr = String(o.date || o.savedAt || o.createdAt || '').split('T')[0];
+          return dStr === todayStr;
+        });
+      } else if (rangeParam === 'yesterday') {
+        const yDate = new Date(now.getTime() - 86400000);
+        const yStr = yDate.toISOString().split('T')[0];
+        filteredOrders = filteredOrders.filter((o: any) => {
+          const dStr = String(o.date || o.savedAt || o.createdAt || '').split('T')[0];
+          return dStr === yStr;
+        });
+      } else if (rangeParam === '7d' || rangeParam === '30d') {
+        const days = rangeParam === '7d' ? 7 : 30;
+        const threshold = Date.now() - (days * 86400000);
+        filteredOrders = filteredOrders.filter((o: any) => {
+          const t = new Date(o.date || o.savedAt || o.createdAt || 0).getTime();
           return t >= threshold;
+        });
+      } else if (rangeParam === 'thismonth') {
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+        filteredOrders = filteredOrders.filter((o: any) => {
+          const t = new Date(o.date || o.savedAt || o.createdAt || 0).getTime();
+          return t >= startOfMonth;
         });
       }
     }
+
+    // ── Helper: Normalized Status Matchers ───────────────────────
+    // Matches DELIVERED, PAID, PROCESSED, PROCCECED and regional equivalents
+    const isDeliveredStatus = (s: string) => {
+      const norm = String(s || '').trim().toUpperCase();
+      return (
+        norm === 'DELIVERED' ||
+        norm === 'PAID' ||
+        norm === 'PROCESSED' ||
+        norm === 'PROCCECED' ||
+        norm === 'PROCESSING' ||
+        norm === 'LIVRE' ||
+        norm === 'LIVRÉ' ||
+        norm === 'PAYE' ||
+        norm === 'PAYÉ' ||
+        norm === 'TRAITE' ||
+        norm === 'TRAITÉ'
+      );
+    };
+
+    const isConfirmedStatus = (s: string) => {
+      const norm = String(s || '').trim().toUpperCase();
+      return (
+        isDeliveredStatus(norm) ||
+        norm === 'CONFIRMED' ||
+        norm === 'CONFIRME' ||
+        norm === 'CONFIRMÉ' ||
+        norm === 'COMPLETED' ||
+        norm === 'SHIPPED' ||
+        norm === 'EXPÉDIÉ' ||
+        norm === 'EXPEDIE' ||
+        norm === 'IN_TRANSIT' ||
+        norm === 'IN TRANSIT'
+      );
+    };
+
+    const isCancelledStatus = (s: string) => {
+      const norm = String(s || '').trim().toUpperCase();
+      return (
+        norm === 'CANCELLED' ||
+        norm === 'CANCELED' ||
+        norm === 'ANNULÉ' ||
+        norm === 'ANNULE' ||
+        norm === 'RETURNED' ||
+        norm === 'RETOUR' ||
+        norm === 'ABANDONED'
+      );
+    };
 
     // Creative aggregation map
     const creativeMap: Record<string, {
@@ -493,12 +588,13 @@ export const GET: APIRoute = async ({ request }) => {
     }> = {};
 
     for (const order of filteredOrders) {
-      const rawCreative = (order.utm_content || '').trim();
+      const rawCreative = (order.utm_content || order.creative || order.ad || order.ad_name || '').trim();
       const creativeKey = rawCreative || 'Direct / Unattributed';
-      const campaign = (order.utm_campaign || '').trim() || '—';
-      const source = (order.utm_source || '').trim() || 'direct';
+      const campaign = (order.utm_campaign || order.campaign || '').trim() || '—';
+      const source = (order.utm_source || order.source || '').trim() || 'direct';
       const product = order.produit || 'Standard Order';
       const rawStatus = (order.status || 'PENDING').toUpperCase();
+      const shippingStatus = (order.shipping_status || order.shippingStatus || order.cod_status || order.etat || '').toUpperCase();
       const totalAmount = Number(order.total) || 0;
 
       if (!creativeMap[creativeKey]) {
@@ -522,17 +618,18 @@ export const GET: APIRoute = async ({ request }) => {
       item.totalLeads += 1;
       item.totalRevenue += totalAmount;
 
-      // Status classification
-      if (rawStatus === 'DELIVERED' || rawStatus === 'PAID') {
+      // Status classification:
+      // If order is DELIVERED, PAID, or PROCESSED (procceced), put it into DELIVERED
+      if (isDeliveredStatus(rawStatus) || isDeliveredStatus(shippingStatus)) {
         item.deliveredOrders += 1;
-        item.confirmedOrders += 1; // Delivered implies previously confirmed
+        item.confirmedOrders += 1; // Delivered implies confirmed
         item.deliveredRevenue += totalAmount;
-      } else if (rawStatus === 'CONFIRMED' || rawStatus === 'COMPLETED') {
+      } else if (isConfirmedStatus(rawStatus)) {
         item.confirmedOrders += 1;
-      } else if (rawStatus === 'SHIPPED' || rawStatus === 'IN_TRANSIT') {
-        item.shippedOrders += 1;
-        item.confirmedOrders += 1;
-      } else if (rawStatus === 'CANCELLED' || rawStatus === 'RETURNED' || rawStatus === 'ABANDONED') {
+        if (rawStatus === 'SHIPPED' || rawStatus === 'IN_TRANSIT' || shippingStatus === 'SHIPPED') {
+          item.shippedOrders += 1;
+        }
+      } else if (isCancelledStatus(rawStatus) || isCancelledStatus(shippingStatus)) {
         item.cancelledOrders += 1;
       }
     }
@@ -774,7 +871,7 @@ export const POST: APIRoute = async ({ request }) => {
       );
 
       if (matchedIndex >= 0) {
-        if (shippingStatus === 'DELIVERED') {
+        if (shippingStatus === 'DELIVERED' || shippingStatus === 'PAID' || shippingStatus === 'PROCESSED') {
           orders[matchedIndex].status = 'DELIVERED';
           updatedCount++;
         } else if (shippingStatus === 'SHIPPED') {

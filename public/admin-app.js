@@ -4561,9 +4561,23 @@ function showOrderDetailModal(order) {
       <div class="modal-body" style="padding: 24px 28px; max-height: 70vh; overflow-y: auto;">
         <!-- Status & Direct Quick Actions -->
         <div style="display: flex; gap: 14px; align-items: center; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; margin-bottom: 20px; flex-wrap: wrap; justify-content: space-between;">
-          <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
             <span style="font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--muted);">Status:</span>
-            ${statusBadge(order.status)}
+            <select class="font-input-box" id="modalOrderStatusSelect" style="padding: 4px 8px; font-size: 12px; font-weight: 700; border-radius: 8px; width: auto; cursor: pointer; height: 32px;">
+              <option value="DELIVERED" ${order.status === 'DELIVERED' ? 'selected' : ''}>DELIVERED</option>
+              <option value="PAID" ${order.status === 'PAID' ? 'selected' : ''}>PAID</option>
+              <option value="PROCESSED" ${order.status === 'PROCESSED' ? 'selected' : ''}>PROCESSED</option>
+              <option value="CONFIRMED" ${order.status === 'CONFIRMED' ? 'selected' : ''}>CONFIRMED</option>
+              <option value="SHIPPED" ${order.status === 'SHIPPED' ? 'selected' : ''}>SHIPPED</option>
+              <option value="COMPLETED" ${order.status === 'COMPLETED' ? 'selected' : ''}>COMPLETED</option>
+              <option value="PENDING" ${order.status === 'PENDING' ? 'selected' : ''}>PENDING</option>
+              <option value="CANCELLED" ${order.status === 'CANCELLED' ? 'selected' : ''}>CANCELLED</option>
+              <option value="RETURNED" ${order.status === 'RETURNED' ? 'selected' : ''}>RETURNED</option>
+              <option value="ABANDONED" ${order.status === 'ABANDONED' ? 'selected' : ''}>ABANDONED</option>
+            </select>
+            <button class="btn btn-sm btn-primary" id="modalSaveStatusBtn" type="button" style="padding: 4px 10px; font-size: 12px; height: 32px;">
+              <i class="fa fa-save"></i> Save
+            </button>
           </div>
 
           <div style="display: flex; gap: 8px;">
@@ -4662,6 +4676,31 @@ function showOrderDetailModal(order) {
   modal.onclick = (e) => {
     if (e.target === modal) closeModal();
   };
+
+  // Save status handler
+  const saveStatusBtn = modal.querySelector('#modalSaveStatusBtn');
+  if (saveStatusBtn) {
+    saveStatusBtn.onclick = async () => {
+      const newStatus = modal.querySelector('#modalOrderStatusSelect').value;
+      saveStatusBtn.disabled = true;
+      saveStatusBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
+      try {
+        const res = await api.updateOrder(order.order_id, { status: newStatus });
+        if (res.ok) {
+          order.status = newStatus;
+          toast('Order status updated to ' + newStatus);
+          window.dispatchEvent(new Event('routechange'));
+        } else {
+          toast('Failed to update status', 'error');
+        }
+      } catch (e) {
+        toast('Error updating status', 'error');
+      } finally {
+        saveStatusBtn.disabled = false;
+        saveStatusBtn.innerHTML = '<i class="fa fa-save"></i> Save';
+      }
+    };
+  }
 
   // Delete order handler
   modal.querySelector('#deleteOrderBtn').onclick = async () => {
